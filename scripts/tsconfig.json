@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "bin",
+    "target": "ES6",
+    "module": "commonjs",
+    "lib": ["dom","es2017"],
+
+    "strict": true,
+    "sourceMap": true,
+    "declaration": true,
+    "alwaysStrict": true,
+    "skipLibCheck": true,
+    "removeComments": true,
+    "skipDefaultLibCheck": true,
+    
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
+  },
+  "exclude": [
+    "bin",
+    "../node_modules"
+  ]
+}
