@@ -1,82 +1,73 @@
 import * as StellarSdk from "stellar-sdk";
-import { xdr, Account, Memo, Keypair, Operation, TransactionRecord, PaymentOperationRecord } from "stellar-sdk";
+import {
+	xdr,
+	Memo,
+	Asset,
+	Keypair,
+	Account,
+	Operation,
+	CollectionPage,
+	TransactionRecord,
+	PaymentOperationRecord
+} from "stellar-sdk";
 
-import { retry, pick } from "./utils";
+import { retry } from "./utils";
 import { KinNetwork } from "./networks";
-import { NativeBalance, isNativeBalance, KinBalance, isKinBalance, isTransactionError } from "./stellar";
+import { NativeBalance, isNativeBalance, KinBalance, isKinBalance, isTransactionError, StellarPayment } from "./stellar";
 
 export { Keypair };
 
 export type Address = string;
 
-export type OnPaymentListener = (payment: Transaction) => void;
+export type OnPaymentListener = (payment: Payment) => void;
 
-function isTransactionRecord(obj: TransactionRecord | PaymentOperationRecord): obj is TransactionRecord {
-	return (obj as TransactionRecord).hash !== undefined;
+export interface Payment {
+	readonly id: string;
+	readonly hash: string;
+	readonly amount: number;
+	readonly sender: string;
+	readonly recipient: string;
+	readonly timestamp: string;
+	readonly memo: string | undefined;
 }
 
-export class Transaction {
-	public static from(stellarTransaction: TransactionRecord): Promise<Transaction>;
-	public static from(stellarPaymentOperation: PaymentOperationRecord): Promise<Transaction>;
-	public static async from(stellarObj: TransactionRecord | PaymentOperationRecord): Promise<Transaction> {
-		let transaction: TransactionRecord;
-		let operation: PaymentOperationRecord;
+function fromStellarPayment(sp: StellarPayment): Payment {
+	return {
+		id: sp.id,
+		hash: sp.id,
+		memo: sp.memo,
+		sender: sp.from,
+		recipient: sp.to,
+		timestamp: sp.created_at,
+		amount: Number(sp.amount)
+	};
+}
 
-		if (isTransactionRecord(stellarObj)) {
-			transaction = stellarObj;
-			operation = (await stellarObj.operations())._embedded.records[0] as PaymentOperationRecord;
-		} else {
-			operation = stellarObj;
-			transaction = await operation.transaction();
-		}
-
-		return new Transaction(
-			transaction.id,
-			transaction.hash,
-			Number(operation.amount),
-			operation.from,
-			operation.to,
-			transaction.created_at,
-			transaction.memo);
-	}
-
-	public readonly id: string;
-	public readonly hash: string;
-	public readonly amount: number;
-	public readonly sender: string;
-	public readonly recipient: string;
-	public readonly timestamp: string;
-	public readonly memo: string | undefined;
-
-	protected constructor(id: string, hash: string, amount: number, sender: string, recipient: string, timestamp: string, memo?: string) {
-		this.id = id;
-		this.hash = hash;
-		this.memo = memo;
-		this.amount = amount;
-		this.sender = sender;
-		this.recipient = recipient;
-		this.timestamp = timestamp;
-	}
+async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord>, asset: Asset): Promise<Payment[]> {
+	const payments = await StellarPayment.allFrom(collection);
+	return payments
+		.filter(payment => payment.is(asset))
+		.map(fromStellarPayment);
 }
 
 export interface KinWallet {
-	getPayments(): Promise<Transaction[]>;
+	getPayments(): Promise<Payment[]>;
 	onPaymentReceived(listener: OnPaymentListener): void;
-	pay(recipient: Address, amount: number, memo?: string): Promise<Transaction>;
+	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
 }
 
 class PaymentStream {
-	private static readonly INTERVAL = 2000;
+	private static readonly POLLING_INTERVAL = 2000;
 
 	private readonly accountId: string;
-	private readonly server!: StellarSdk.Server;
+	private readonly network: KinNetwork;
 
 	private timer: any | undefined;
 	private cursor: string | undefined;
 	private listener: OnPaymentListener | undefined;
 
-	constructor(server: StellarSdk.Server, accountId: string) {
-		this.server = server;
+	constructor(network: KinNetwork, accountId: string) {
+		this.network = network;
 		this.accountId = accountId;
 		this.check = this.check.bind(this);
 	}
@@ -87,7 +78,7 @@ class PaymentStream {
 
 	public start() {
 		if (this.timer === undefined) {
-			this.timer = setTimeout(this.check, PaymentStream.INTERVAL);
+			this.timer = setTimeout(this.check, PaymentStream.POLLING_INTERVAL);
 		}
 	}
 
@@ -97,7 +88,7 @@ class PaymentStream {
 	}
 
 	private async check() {
-		const builder = this.server
+		const builder = this.network.server
 			.payments()
 			.forAccount(this.accountId)
 			.order("desc");
@@ -109,7 +100,8 @@ class PaymentStream {
 		const payments = await builder.call();
 
 		if (this.listener) {
-			await Promise.all(payments.records.map(async payment => this.listener!(await Transaction.from(payment))));
+			(await getPaymentsFrom(payments, this.network.asset))
+				.forEach(payment => this.listener!(payment));
 		}
 
 		this.start();
@@ -131,7 +123,7 @@ class Wallet implements KinWallet {
 		this.network = network;
 		this.kinBalance = kinBalance;
 		this.nativeBalance = nativeBalance;
-		this.payments = new PaymentStream(this.network.server, this.keys.publicKey());
+		this.payments = new PaymentStream(this.network, this.keys.publicKey());
 
 		if (this.kinBalance === undefined) {
 			this.establishTrustLine();
@@ -143,7 +135,7 @@ class Wallet implements KinWallet {
 		this.payments.start();
 	}
 
-	public async pay(recipient: Address, amount: number, memo?: string): Promise<Transaction> {
+	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
 		const op = StellarSdk.Operation.payment({
 			destination: recipient,
 			asset: this.network.asset,
@@ -156,18 +148,18 @@ class Wallet implements KinWallet {
 
 		const payment = await this.stellarOperation(op, memo);
 		const operation = (await payment.operations())._embedded.records[0] as PaymentOperationRecord;
-		return Transaction.from(operation);
+		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
 	public async getPayments() {
-		const payments = (await this.network.server
+		const payments = await this.network.server
 			.payments()
 			.forAccount(this.keys.publicKey())
 			.order("desc")
 			.limit(10)
-			.call()).records;
+			.call();
 
-		return await Promise.all(payments.map(payment => Transaction.from(payment)));
+		return await getPaymentsFrom(payments, this.network.asset);
 	}
 
 	private async establishTrustLine() {
