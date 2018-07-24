@@ -174,9 +174,7 @@ class Wallet implements KinWallet {
 				const accountResponse = await this.network.server.loadAccount(this.keys.publicKey());
 				console.log("trustline established");
 
-				this.kinBalance = accountResponse.balances.find(balance => (
-					isKinBalance(balance) && balance.asset_issuer === this.network.asset.issuer
-				)) as KinBalance | undefined;
+				this.kinBalance = getKinBalance(accountResponse, this.network.asset.issuer);
 			} catch (e) {
 				console.log(e);
 				return null;
@@ -216,16 +214,25 @@ class Wallet implements KinWallet {
 }
 
 export async function create(network: KinNetwork, keys: Keypair) {
+	console.log("create 1: ", keys.publicKey());
 	const accountResponse = await network.server.loadAccount(keys.publicKey());
+	console.log("create 2: ", accountResponse.accountId());
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
+	console.log("create 3");
 	const nativeBalance = accountResponse.balances.find(isNativeBalance);
-	const kinBalance = accountResponse.balances.find(balance => (
-		isKinBalance(balance) && balance.asset_issuer === network.asset.issuer
-	)) as KinBalance | undefined;
+	console.log("create 4");
+	const kinBalance = getKinBalance(accountResponse, network.asset.issuer);
+	console.log("create 5");
 
 	if (!nativeBalance) {
 		throw new Error("account contains no balance");
 	}
 
 	return new Wallet(network, keys, account, nativeBalance, kinBalance);
+}
+
+function getKinBalance(accountResponse: StellarSdk.AccountResponse, issuer: string) {
+	return accountResponse.balances.find(balance => (
+		isKinBalance(balance) && balance.asset_issuer === issuer
+	)) as KinBalance | undefined;
 }
