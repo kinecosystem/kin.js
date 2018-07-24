@@ -233,6 +233,6 @@ export async function create(network: KinNetwork, keys: Keypair) {
 
 function getKinBalance(accountResponse: StellarSdk.AccountResponse, issuer: string) {
 	return accountResponse.balances.find(balance => (
-		isKinBalance(balance) && balance.asset_issuer === issuer
+		isKinBalance(balance, issuer)
 	)) as KinBalance | undefined;
 }

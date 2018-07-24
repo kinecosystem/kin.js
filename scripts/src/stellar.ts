@@ -31,10 +31,11 @@ export type KinBalance = {
 	asset_code: typeof KIN_ASSET_CODE;
 };
 
-export function isKinBalance(obj: any): obj is KinBalance {
+export function isKinBalance(obj: any, issuer: string, code: string = KIN_ASSET_CODE): obj is KinBalance {
 	return obj &&
 		typeof obj.balance === "string" &&
-		obj.asset_code === KIN_ASSET_CODE &&
+		obj.asset_code === code &&
+		obj.asset_issuer === issuer &&
 		obj.asset_type === "credit_alphanum4";
 }
 
