@@ -167,9 +167,32 @@ export class Operations {
 	}
 
 	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
+		const account = await this.loadAccount(this.keys.publicKey());
+
+		return await this._send(account, operation, memoText);
+	}
+
+	public async establishTrustLine(address: string, account?: StellarSdk.AccountResponse): Promise<KinBalance> {
+		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
+		await this.send(op);
+
+		const accountResponse = await this.server.loadAccount(address);
+		if (isKinBalance(accountResponse, this.asset)) {
+			return accountResponse;
+		}
+
+		throw new Error("failed to establish trustline");
+	}
+
+	@retry({ errorMessagePrefix: "failed to load account" })
+	public async loadAccount(address: string): Promise<StellarSdk.AccountResponse> {
+		return await this.server.loadAccount(address);
+	}
+
+	@retry({ errorMessagePrefix: "transaction failure" })
+	private async _send(account: StellarSdk.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
 		try {
-			const accountResponse = await this.server.loadAccount(this.keys.publicKey());
-			const transactionBuilder = new StellarSdk.TransactionBuilder(accountResponse);
+			const transactionBuilder = new StellarSdk.TransactionBuilder(account);
 			transactionBuilder.addOperation(operation);
 
 			if (memoText) {
@@ -189,32 +212,5 @@ export class Operations {
 				throw e;
 			}
 		}
-	}
-
-	public async establishTrustLine(address: string): Promise<KinBalance | null> {
-		console.log("establishing trustline");
-		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
-
-		const fn = async () => {
-			try {
-				await this.send(op);
-				const accountResponse = await this.server.loadAccount(address);
-				console.log("trustline established");
-
-				if (isKinBalance(accountResponse, this.asset)) {
-					return accountResponse;
-				}
-
-				return null;
-			} catch (e) {
-				console.log(e);
-				return null;
-			}
-		};
-
-		return await retry(
-			fn,
-			res => res === true,
-			"failed to establish trustline");
 	}
 }

@@ -7,7 +7,6 @@ import {
 	PaymentOperationRecord
 } from "stellar-sdk";
 
-import { retry } from "./utils";
 import { KinNetwork } from "./networks";
 import {
 	KinBalance,
@@ -112,6 +111,14 @@ class PaymentStream {
 }
 
 class Wallet implements KinWallet {
+	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined): Promise<KinWallet> {
+		if (kinBalance === undefined) {
+			kinBalance = (await operations.establishTrustLine(keys.publicKey())) || undefined;
+		}
+
+		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance);
+	}
+
 	private readonly keys: Keypair;
 	private readonly account: Account;
 	private readonly network: KinNetwork;
@@ -121,22 +128,14 @@ class Wallet implements KinWallet {
 	private nativeBalance: NativeBalance;
 	private kinBalance: KinBalance | undefined;
 
-	constructor(network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined) {
+	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined) {
 		this.keys = keys;
 		this.account = account;
 		this.network = network;
 		this.kinBalance = kinBalance;
+		this.operations = operations;
 		this.nativeBalance = nativeBalance;
-		this.operations = Operations.for(network.server, keys, network.asset);
 		this.payments = new PaymentStream(this.network, this.keys.publicKey());
-
-		if (this.kinBalance === undefined) {
-			this.operations.establishTrustLine(this.keys.publicKey()).then(balance => {
-				if (balance) {
-					this.kinBalance = balance;
-				}
-			});
-		}
 	}
 
 	public onPaymentReceived(listener: OnPaymentListener) {
@@ -155,8 +154,11 @@ class Wallet implements KinWallet {
 			memo = undefined;
 		}
 
+		console.log("moo 1");
 		const payment = await this.operations.send(op, memo);
+		console.log("moo 2");
 		const operation = (await payment.operations())._embedded.records[0] as PaymentOperationRecord;
+		console.log("moo 3");
 		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
@@ -170,85 +172,28 @@ class Wallet implements KinWallet {
 
 		return await getPaymentsFrom(payments, this.network.asset);
 	}
-
-	/*private async establishTrustLine() {
-		console.log("establishing trustline");
-		const op = StellarSdk.Operation.changeTrust({
-			asset: this.network.asset
-		});
-
-		const fn = async () => {
-			try {
-				await this.stellarOperation(op);
-				const accountResponse = await this.network.server.loadAccount(this.keys.publicKey());
-				console.log("trustline established");
-
-				this.kinBalance = getKinBalance(accountResponse, this.network.asset.issuer);
-			} catch (e) {
-				console.log(e);
-				return null;
-			}
-		};
-
-		await retry(
-			fn,
-			res => res !== null,
-			"failed to establish trustline");
-	}*/
-
-	/*private async stellarOperation(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
-		try {
-			const accountResponse = await this.network.server.loadAccount(this.keys.publicKey());
-			const transactionBuilder = new StellarSdk.TransactionBuilder(accountResponse);
-			transactionBuilder.addOperation(operation);
-
-			if (memoText) {
-				transactionBuilder.addMemo(Memo.text(memoText));
-			}
-			const transaction = transactionBuilder.build();
-
-			transaction.sign(this.keys);
-			return await this.network.server.submitTransaction(transaction);
-		} catch (e) {
-			if (isTransactionError(e)) {
-				throw new Error(
-					`\nStellar Error:\ntransaction: ${ e.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.data.extras.result_codes.operations.join(",")}`
-				);
-			} else {
-				throw e;
-			}
-		}
-	}*/
 }
 
 export async function create(network: KinNetwork, keys: Keypair) {
-	const fn = async () => {
-		try {
-			return await network.server.loadAccount(keys.publicKey());
-		} catch (e) {
-			return null;
-		}
-	};
-	const accountResponse = await retry(
-		fn,
-		res => res !== null,
-		"failed to establish trustline");
+	console.log("create 1");
+	const operations = Operations.for(network.server, keys, network.asset);
+	console.log("create 2");
+	const accountResponse = await operations.loadAccount(keys.publicKey());
+	console.log("create 3");
 
-	if (!accountResponse) {
-		throw new Error("failed to create account");
-	}
-
-	// const accountResponse = await network.server.loadAccount(keys.publicKey());
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
+	console.log("create 4");
 	const nativeBalance = accountResponse.balances.find(isNativeBalance);
+	console.log("create 5");
 	const kinBalance = getKinBalance(accountResponse, network.asset);
+	console.log("create 6");
 
 	if (!nativeBalance) {
 		throw new Error("account contains no balance");
 	}
 
-	return new Wallet(network, keys, account, nativeBalance, kinBalance);
+	console.log("create 7");
+	return Wallet.create(operations, network, keys, account, nativeBalance, kinBalance);
 }
 
 function getKinBalance(accountResponse: StellarSdk.AccountResponse, asset: Asset) {
