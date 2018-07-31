@@ -7,15 +7,15 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "nitzan@kik.com",
+  "license": "MIT",
   "devDependencies": {
-    "@types/stellar-sdk": "^0.8.4",
+    "@types/stellar-sdk": "^0.8.0",
     "tslint": "^5.10.0",
     "tslint-eslint-rules": "^5.3.1",
     "typescript": "^2.9.2"
   },
   "dependencies": {
-    "stellar-sdk": "^0.9.1"
+    "stellar-sdk": "^0.8.0"
   }
 }

@@ -11,8 +11,8 @@ import { KinNetwork } from "./networks";
 import {
 	KinBalance,
 	Operations,
-	isKinBalance,
 	NativeBalance,
+	getKinBalance,
 	StellarPayment,
 	isNativeBalance
 } from "./stellar";
@@ -154,11 +154,8 @@ class Wallet implements KinWallet {
 			memo = undefined;
 		}
 
-		console.log("moo 1");
 		const payment = await this.operations.send(op, memo);
-		console.log("moo 2");
-		const operation = (await payment.operations())._embedded.records[0] as PaymentOperationRecord;
-		console.log("moo 3");
+		const operation = (await this.network.server.operations().forTransaction(payment.hash).call()).records[0] as PaymentOperationRecord;
 		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
@@ -175,29 +172,16 @@ class Wallet implements KinWallet {
 }
 
 export async function create(network: KinNetwork, keys: Keypair) {
-	console.log("create 1");
 	const operations = Operations.for(network.server, keys, network.asset);
-	console.log("create 2");
 	const accountResponse = await operations.loadAccount(keys.publicKey());
-	console.log("create 3");
 
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
-	console.log("create 4");
 	const nativeBalance = accountResponse.balances.find(isNativeBalance);
-	console.log("create 5");
 	const kinBalance = getKinBalance(accountResponse, network.asset);
-	console.log("create 6");
 
 	if (!nativeBalance) {
 		throw new Error("account contains no balance");
 	}
 
-	console.log("create 7");
 	return Wallet.create(operations, network, keys, account, nativeBalance, kinBalance);
-}
-
-function getKinBalance(accountResponse: StellarSdk.AccountResponse, asset: Asset) {
-	return accountResponse.balances.find(balance => (
-		isKinBalance(balance, asset)
-	)) as KinBalance | undefined;
 }

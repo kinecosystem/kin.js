@@ -12,7 +12,7 @@ export type RetryOptions = Partial<{
 }>;
 
 export const DefaultRetryOptions = {
-	tries: 30,
+	tries: 25,
 	delay: 1000
 };
 
@@ -46,8 +46,11 @@ async function _retry<T>(fn: () => T, options?: RetryOptions) {
 			error = e instanceof Error ? e : new Error(e.toString());
 		}
 
+		console.log("retrying..." +
+			(error === null ?
+				"" :
+				` (because: ${ typeof error.message === "string" ? error.message : JSON.stringify(error.message)})`));
 		await delay(options.delay!);
-		console.log("retrying...");
 	}
 
 	if (error) {

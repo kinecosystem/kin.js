@@ -8,7 +8,7 @@ This is still a work in progress and is **not** ready for use.
 
 ## Client
 The sdk offers a client which allows to check for payments (earn and spend transactions) and 
-to create a new payment.  
+to create new payments.  
 The client interface:
 ```typescript
 interface Payment {
@@ -58,7 +58,7 @@ For production use the appropriate network:
 ```typescript
 import { KinNetwork } from "kin.js";
 
-const network = KinNetwork.PUBLIC;
+const network = KinNetwork.Production;
 ```
 
 Or you can create your own:

@@ -51,6 +51,16 @@ export function isKinBalance(obj: any, asset: Asset): obj is KinBalance {
 		obj.asset_type === "credit_alphanum4";
 }
 
+export function isKinAccount(account: StellarSdk.AccountResponse, asset: Asset): boolean {
+	return account && account.balances && account.balances.some(balance => isKinBalance(balance, asset));
+}
+
+export function getKinBalance(account: StellarSdk.AccountResponse, asset: Asset): KinBalance | undefined {
+	return account && account.balances ?
+		account.balances.find(balance => isKinBalance(balance, asset)) as KinBalance
+		: undefined;
+}
+
 export type TransactionError = {
 	data: {
 		title: string;
@@ -168,25 +178,28 @@ export class Operations {
 
 	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
 		const account = await this.loadAccount(this.keys.publicKey());
-
 		return await this._send(account, operation, memoText);
 	}
 
 	public async establishTrustLine(address: string, account?: StellarSdk.AccountResponse): Promise<KinBalance> {
 		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
 		await this.send(op);
-
-		const accountResponse = await this.server.loadAccount(address);
-		if (isKinBalance(accountResponse, this.asset)) {
-			return accountResponse;
-		}
-
-		throw new Error("failed to establish trustline");
+		return this.checkKinBalance(address);
 	}
 
 	@retry({ errorMessagePrefix: "failed to load account" })
 	public async loadAccount(address: string): Promise<StellarSdk.AccountResponse> {
 		return await this.server.loadAccount(address);
+	}
+
+	@retry()
+	private async checkKinBalance(address: string) {
+		const accountResponse = await this.server.loadAccount(address);
+		if (isKinAccount(accountResponse, this.asset)) {
+			return getKinBalance(accountResponse, this.asset)!;
+		}
+
+		throw new Error("failed to establish trustline");
 	}
 
 	@retry({ errorMessagePrefix: "transaction failure" })
@@ -201,6 +214,7 @@ export class Operations {
 			const transaction = transactionBuilder.build();
 
 			transaction.sign(this.keys);
+
 			return await this.server.submitTransaction(transaction);
 		} catch (e) {
 			if (isTransactionError(e)) {
