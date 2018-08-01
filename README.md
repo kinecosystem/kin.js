@@ -4,7 +4,8 @@ A typescript/javascript implementation of the Kin sdk.
 The sdk is meant to run in both node based apps as well as in the browser.
 
 ## Current state
-This is still a work in progress and is **not** ready for use.
+This is still a work in progress and is **not** ready for use.  
+Currently it's only possible to load an existing funded wallets.
 
 ## Client
 The sdk offers a client which allows to check for payments (earn and spend transactions) and 
