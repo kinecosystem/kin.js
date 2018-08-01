@@ -1,0 +1,22 @@
+{
+  "name": "kin.js",
+  "version": "1.0.3",
+  "description": "",
+  "main": "./scripts/bin/index.js",
+  "types": "./scripts/bin/index.d.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "nitzan@kik.com",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/stellar-sdk": "0.8.6",
+    "tslint": "5.11.0",
+    "tslint-eslint-rules": "5.3.1",
+    "typescript": "3.0.1"
+  },
+  "dependencies": {
+    "ed25519": "0.0.4",
+    "stellar-sdk": "0.10.0"
+  }
+}
