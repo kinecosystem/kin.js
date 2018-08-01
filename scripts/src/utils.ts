@@ -16,9 +16,12 @@ export const DefaultRetryOptions = {
 	delay: 1000
 };
 
-export function retry(options?: RetryOptions): MethodDecorator; // as decorator
-export function retry<T>(fn: () => T, options?: RetryOptions): Promise<T>; // as a regular function
-export function retry() { // implementation
+// as decorator
+export function retry(options?: RetryOptions): MethodDecorator;
+// as a regular function
+export function retry<T>(fn: () => T, options?: RetryOptions): Promise<T>;
+// implementation
+export function retry() {
 	if (typeof arguments[0] === "function") {
 		return _retry(arguments[0], arguments[1]);
 	}
@@ -39,6 +42,7 @@ async function _retry<T>(fn: () => T, options?: RetryOptions) {
 				return obj;
 			}
 		} catch (e) {
+			// thrown errors are are ignored only if a predicate was not passed
 			if (options.predicate) {
 				throw e;
 			}
@@ -46,7 +50,7 @@ async function _retry<T>(fn: () => T, options?: RetryOptions) {
 			error = e instanceof Error ? e : new Error(e.toString());
 		}
 
-		console.log("retrying..." +
+		console.debug("retrying..." +
 			(error === null ?
 				"" :
 				` (because: ${ typeof error.message === "string" ? error.message : JSON.stringify(error.message)})`));
