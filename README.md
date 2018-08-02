@@ -34,7 +34,7 @@ interface KinWallet {
 
 In order to create a wallet:
 ```typescript
-import { KinWallet, createWallet, KinNetwork, Keypair } from "kin.js";
+import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js";
 
 async function createKinWallet(): Promise<KinWallet> {
 	const keys = Keypair.random();
@@ -46,7 +46,7 @@ async function createKinWallet(): Promise<KinWallet> {
 
 Or using promises (without `async/await`):
 ```typescript
-import { KinWallet, createWallet, KinNetwork, Keypair } from "kin.js";
+import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js";
 
 const keys = Keypair.random();
 const network = KinNetwork.Testnet;
@@ -57,14 +57,14 @@ createWallet(network, keys).then(w => wallet = w);
 
 For production use the appropriate network:
 ```typescript
-import { KinNetwork } from "kin.js";
+import { KinNetwork } from "@kinecosystem/kin.js";
 
 const network = KinNetwork.Production;
 ```
 
 Or you can create your own:
 ```typescript
-import { KinNetwork } from "kin.js";
+import { KinNetwork } from "@kinecosystem/kin.js";
 
 const network = KinNetwork.from(
 	"network passphrase",
