@@ -4,6 +4,9 @@
   "description": "A typescript/javascript implementation of the Kin sdk",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "lint": "tslint -p tsconfig.json",
     "build": "tsc"
