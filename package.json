@@ -2,14 +2,14 @@
   "name": "@kinecosystem/kin.js",
   "version": "1.0.3",
   "description": "A typescript/javascript implementation of the Kin sdk",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "scripts/bin/index.js",
+  "types": "scripts/bin/index.d.ts",
   "files": [
-    "dist"
+    "scripts/bin"
   ],
   "scripts": {
-    "lint": "tslint -p tsconfig.json",
-    "build": "tsc"
+    "lint": "tslint -p scripts/tsconfig.json",
+    "build": "tsc -p scripts/tsconfig.json"
   },
   "author": "nitzan@kik.com",
   "license": "MIT",

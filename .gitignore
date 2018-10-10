@@ -1,4 +1,4 @@
 .idea
 .vscode
-dist
+scripts/bin
 node_modules

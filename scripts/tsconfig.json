@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist",
+    "outDir": "bin",
     "target": "ES6",
     "module": "commonjs",
     "lib": ["dom","es2017"],
@@ -18,7 +18,7 @@
     "experimentalDecorators": true
   },
   "exclude": [
-    "dist",
-    "node_modules"
+    "bin",
+    "../node_modules"
   ]
 }
