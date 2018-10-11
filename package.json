@@ -2,10 +2,14 @@
   "name": "@kinecosystem/kin.js",
   "version": "1.0.3",
   "description": "A typescript/javascript implementation of the Kin sdk",
-  "main": "./scripts/bin/index.js",
-  "types": "./scripts/bin/index.d.ts",
+  "main": "scripts/bin/index.js",
+  "types": "scripts/bin/index.d.ts",
+  "files": [
+    "scripts/bin"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "tslint -p scripts/tsconfig.json",
+    "build": "tsc -p scripts/tsconfig.json"
   },
   "author": "nitzan@kik.com",
   "license": "MIT",
