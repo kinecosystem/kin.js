@@ -56,6 +56,7 @@ export function isKinAccount(account: StellarSdk.AccountResponse, asset: Asset):
 }
 
 export function getKinBalance(account: StellarSdk.AccountResponse, asset: Asset): KinBalance | undefined {
+	// return the balance of the given asset or undefined when asset isn't trusted
 	return account && account.balances ?
 		account.balances.find(balance => isKinBalance(balance, asset)) as KinBalance
 		: undefined;
@@ -177,14 +178,14 @@ export class Operations {
 	}
 
 	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
-		const account = await this.loadAccount(this.keys.publicKey());
+		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
 		return await this._send(account, operation, memoText);
 	}
 
-	public async establishTrustLine(address: string, account?: StellarSdk.AccountResponse): Promise<KinBalance> {
+	public async establishTrustLine(): Promise<KinBalance> {
 		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
 		await this.send(op);
-		return this.checkKinBalance(address);
+		return this.checkKinBalance(this.keys.publicKey());
 	}
 
 	@retry({ errorMessagePrefix: "failed to load account" })
