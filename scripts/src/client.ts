@@ -54,8 +54,12 @@ async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord
 
 export interface KinWallet {
 	getPayments(): Promise<Payment[]>;
+
 	onPaymentReceived(listener: OnPaymentListener): void;
+
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
+
+	trustKin(): void;
 }
 
 class PaymentStream {
@@ -112,10 +116,6 @@ class PaymentStream {
 
 class Wallet implements KinWallet {
 	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined): Promise<KinWallet> {
-		if (kinBalance === undefined) {
-			kinBalance = (await operations.establishTrustLine(keys.publicKey())) || undefined;
-		}
-
 		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance);
 	}
 
@@ -136,6 +136,10 @@ class Wallet implements KinWallet {
 		this.operations = operations;
 		this.nativeBalance = nativeBalance;
 		this.payments = new PaymentStream(this.network, this.keys.publicKey());
+	}
+
+	public async trustKin() {
+		this.kinBalance = await this.operations.establishTrustLine();
 	}
 
 	public onPaymentReceived(listener: OnPaymentListener) {
