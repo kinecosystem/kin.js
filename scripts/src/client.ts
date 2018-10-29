@@ -53,6 +53,8 @@ async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord
 }
 
 export interface KinWallet {
+	address: string;
+
 	getPayments(): Promise<Payment[]>;
 
 	onPaymentReceived(listener: OnPaymentListener): void;
@@ -172,6 +174,10 @@ class Wallet implements KinWallet {
 			.call();
 
 		return await getPaymentsFrom(payments, this.network.asset);
+	}
+
+	get address() {
+		return this.keys.publicKey();
 	}
 }
 
