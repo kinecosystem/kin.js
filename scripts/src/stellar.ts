@@ -63,28 +63,32 @@ export function getKinBalance(account: StellarSdk.AccountResponse, asset: Asset)
 }
 
 export type TransactionError = {
-	data: {
-		title: string;
-		type: string;
+	response: {
 		status: number;
-		detail: string;
-		extras: {
-			envelope_xdr: string;
-			result_xdr: string;
-			result_codes: {
-				transaction: string;
-				operations: string[];
-			}
-		}
-	}
+		statusText: string;
+		data: {
+			title: string;
+			type: string;
+			status: number;
+			detail: string;
+			extras: {
+				envelope_xdr: string;
+				result_xdr: string;
+				result_codes: {
+					transaction: string;
+					operations: string[];
+				};
+			};
+		};
+	};
 };
 
 export function isTransactionError(error: any): error is TransactionError {
-	return error.data && error.data.extras &&
-		typeof error.data.title === "string" &&
-		typeof error.data.type === "string" &&
-		typeof error.data.status === "number" &&
-		typeof error.data.detail === "string";
+	return error.response && error.response.data && error.response.data.extras &&
+		typeof error.response.data.title === "string" &&
+		typeof error.response.data.type === "string" &&
+		typeof error.response.data.status === "number" &&
+		typeof error.response.data.detail === "string";
 }
 
 function isTransactionRecord(obj: TransactionRecord | PaymentOperationRecord): obj is TransactionRecord {
@@ -193,6 +197,11 @@ export class Operations {
 		return await this.server.loadAccount(address);
 	}
 
+	@retry({ errorMessagePrefix: "failed to fetch payment operation record" })
+	public async getPaymentOperationRecord(hash: string): Promise<PaymentOperationRecord> {
+		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
+	}
+
 	@retry()
 	private async checkKinBalance(address: string) {
 		const accountResponse = await this.server.loadAccount(address);
@@ -220,8 +229,8 @@ export class Operations {
 		} catch (e) {
 			if (isTransactionError(e)) {
 				throw new Error(
-					`\nStellar Error:\ntransaction: ${ e.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.data.extras.result_codes.operations.join(",")}`
+					`\nStellar Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
+					`\n\toperations: ${e.response.data.extras.result_codes.operations.join(",")}`
 				);
 			} else {
 				throw e;

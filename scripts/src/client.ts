@@ -161,7 +161,7 @@ class Wallet implements KinWallet {
 		}
 
 		const payment = await this.operations.send(op, memo);
-		const operation = (await this.network.server.operations().forTransaction(payment.hash).call()).records[0] as PaymentOperationRecord;
+		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
 		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
