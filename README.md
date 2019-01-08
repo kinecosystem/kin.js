@@ -71,3 +71,15 @@ const network = KinNetwork.from(
 	"asset issuer",
 	"horizon url");
 ```
+
+To get the Kin balance from a wallet:
+```typescript
+const wallet = getWallet(); // get the wallet somehow
+let balance = wallet.balance.cached);
+```
+
+Or to get the current balance:
+```typescript
+let balance = await wallet.balance.update();
+```
+The `update()` method will also update the `cached` value.
