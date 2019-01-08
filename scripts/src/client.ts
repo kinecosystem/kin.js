@@ -33,6 +33,11 @@ export interface Payment {
 	readonly memo: string | undefined;
 }
 
+export type Balance = {
+	readonly cached: number;
+	update(): Promise<number>;
+};
+
 function fromStellarPayment(sp: StellarPayment): Payment {
 	return {
 		id: sp.id,
@@ -53,7 +58,8 @@ async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord
 }
 
 export interface KinWallet {
-	address: string;
+	readonly address: string;
+	readonly balance: Balance;
 
 	getPayments(): Promise<Payment[]>;
 
@@ -137,6 +143,7 @@ class Wallet implements KinWallet {
 		this.kinBalance = kinBalance;
 		this.operations = operations;
 		this.nativeBalance = nativeBalance;
+		this.updateBalance = this.updateBalance.bind(this);
 		this.payments = new PaymentStream(this.network, this.keys.publicKey());
 	}
 
@@ -176,8 +183,27 @@ class Wallet implements KinWallet {
 		return await getPaymentsFrom(payments, this.network.asset);
 	}
 
-	get address() {
+	public get address() {
 		return this.keys.publicKey();
+	}
+
+	public get balance() {
+		const self = this;
+
+		return {
+			get cached() {
+				return parseFloat(self.kinBalance!.balance);
+			},
+			async update() {
+				await self.updateBalance();
+				return parseFloat(self.kinBalance!.balance);
+			}
+		};
+	}
+
+	private async updateBalance() {
+		const account = await this.network.server.loadAccount(this.keys.publicKey());
+		this.kinBalance = getKinBalance(account, this.network.asset);
 	}
 }
 
