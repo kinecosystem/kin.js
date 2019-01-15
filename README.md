@@ -75,7 +75,7 @@ const network = KinNetwork.from(
 To get the Kin balance from a wallet:
 ```typescript
 const wallet = getWallet(); // get the wallet somehow
-let balance = wallet.balance.cached);
+let balance = wallet.balance.cached();
 ```
 
 Or to get the current balance:
