@@ -12,7 +12,7 @@ export class KinNetwork {
 	public static readonly Testnet = new KinNetwork(
 		StellarSdk.Networks.TESTNET,
 		"GBC3SG6NGTSZ2OMH3FFGB7UVRQWILW367U4GSOOF4TFSZONV42UJXUH7",
-		"https://horizon-playground.kininfrastructure.com/"
+		"https://horizon-playground.kininfrastructure.com"
 	);
 
 	public static from(passphrase: string, issuer: string, horizon: string) {
