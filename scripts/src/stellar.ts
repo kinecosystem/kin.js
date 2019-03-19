@@ -14,15 +14,15 @@ import { retry } from "./utils";
 
 export * from "stellar-sdk";
 
-declare module "stellar-sdk" {
-	export namespace Operation {
-		interface ChangeTrustOptions {
-			limit?: string;
-		}
-	}
-}
+// declare module "stellar-sdk" {
+// 	export namespace Operation {
+// 		interface ChangeTrustOptions {
+// 			limit?: string;
+// 		}
+// 	}
+// }
 
-export const KIN_ASSET_CODE = "KIN";
+// export const KIN_ASSET_CODE = "KIN";
 
 export type NativeBalance = {
 	balance: string;
@@ -36,19 +36,19 @@ export function isNativeBalance(obj: any): obj is NativeBalance {
 }
 
 export type KinBalance = {
-	limit: string;
+	// limit: string;
 	balance: string;
-	asset_issuer: string;
-	asset_type: "credit_alphanum4";
-	asset_code: typeof KIN_ASSET_CODE;
+	// asset_issuer: string;
+	asset_type: "native";
+	// asset_code: typeof KIN_ASSET_CODE;
 };
 
 export function isKinBalance(obj: any, asset: Asset): obj is KinBalance {
 	return obj &&
 		typeof obj.balance === "string" &&
-		obj.asset_code === asset.code &&
-		obj.asset_issuer === asset.issuer &&
-		obj.asset_type === "credit_alphanum4";
+		// obj.asset_code === asset.code &&
+		// obj.asset_issuer === asset.issuer &&
+		obj.asset_type === "native";
 }
 
 export function isKinAccount(account: StellarSdk.AccountResponse, asset: Asset): boolean {
@@ -95,10 +95,10 @@ function isTransactionRecord(obj: TransactionRecord | PaymentOperationRecord): o
 	return (obj as TransactionRecord).hash !== undefined;
 }
 
-export class StellarPayment {
-	public static from(stellarTransaction: TransactionRecord): Promise<StellarPayment>;
-	public static from(stellarPaymentOperation: PaymentOperationRecord): Promise<StellarPayment>;
-	public static async from(stellarObj: TransactionRecord | PaymentOperationRecord): Promise<StellarPayment> {
+export class KinPayment {
+	public static from(stellarTransaction: TransactionRecord): Promise<KinPayment>;
+	public static from(stellarPaymentOperation: PaymentOperationRecord): Promise<KinPayment>;
+	public static async from(stellarObj: TransactionRecord | PaymentOperationRecord): Promise<KinPayment> {
 		let transaction: TransactionRecord;
 		let operation: PaymentOperationRecord;
 
@@ -110,11 +110,12 @@ export class StellarPayment {
 			transaction = await operation.transaction();
 		}
 
-		return new StellarPayment(transaction, operation);
+		return new KinPayment(transaction, operation);
 	}
 
-	public static async allFrom(collection: CollectionPage<PaymentOperationRecord>): Promise<StellarPayment[]> {
-		return await Promise.all(collection.records.map(async record => await this.from(record)));
+	public static async allFrom(collection: CollectionPage<PaymentOperationRecord>): Promise<KinPayment[]> {
+		// TODO: add types, ad matai
+		return (await Promise.all(collection.records.map(async record => await this.from(record)))) as any;
 	}
 
 	public readonly transaction: TransactionRecord;
@@ -200,6 +201,32 @@ export class Operations {
 	@retry({ errorMessagePrefix: "failed to fetch payment operation record" })
 	public async getPaymentOperationRecord(hash: string): Promise<PaymentOperationRecord> {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
+	}
+
+	@retry({ errorMessagePrefix: "transaction failure" })
+	public async createTransactionXDR(account: StellarSdk.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
+		try {
+			const transactionBuilder = new StellarSdk.TransactionBuilder(account);
+			transactionBuilder.addOperation(operation);
+
+			if (memoText) {
+				transactionBuilder.addMemo(Memo.text(memoText));
+			}
+			const transaction = transactionBuilder.build();
+
+			transaction.sign(this.keys);
+
+			return transaction.toEnvelope().toXDR().toString();
+		} catch (e) {
+			if (isTransactionError(e)) {
+				throw new Error(
+					`\nStellar Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
+					`\n\toperations: ${e.response.data.extras.result_codes.operations.join(",")}`
+				);
+			} else {
+				throw e;
+			}
+		}
 	}
 
 	@retry()

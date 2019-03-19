@@ -13,7 +13,7 @@ import {
 	Operations,
 	NativeBalance,
 	getKinBalance,
-	StellarPayment,
+	KinPayment,
 	isNativeBalance
 } from "./stellar";
 
@@ -38,7 +38,7 @@ export type Balance = {
 	update(): Promise<number>;
 };
 
-function fromStellarPayment(sp: StellarPayment): Payment {
+function fromStellarPayment(sp: KinPayment): Payment {
 	return {
 		id: sp.id,
 		hash: sp.id,
@@ -51,7 +51,7 @@ function fromStellarPayment(sp: StellarPayment): Payment {
 }
 
 async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord>, asset: Asset): Promise<Payment[]> {
-	const payments = await StellarPayment.allFrom(collection);
+	const payments = await KinPayment.allFrom(collection);
 	return payments
 		.filter(payment => payment.is(asset))
 		.map(fromStellarPayment);
@@ -169,7 +169,7 @@ class Wallet implements KinWallet {
 
 		const payment = await this.operations.send(op, memo);
 		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
-		return fromStellarPayment(await StellarPayment.from(operation));
+		return fromStellarPayment(await KinPayment.from(operation));
 	}
 
 	public async getPayments() {
