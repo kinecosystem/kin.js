@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "lint": "tslint -p scripts/tsconfig.json",
-    "build": "tsc -p scripts/tsconfig.json"
+    "build": "tsc -p scripts/tsconfig.json",
+    "test": "node ./scripts/bin/tester"
   },
   "author": "nitzan@kik.com",
   "license": "MIT",
@@ -25,6 +26,7 @@
   },
   "dependencies": {
     "@kinecosystem/kin-sdk": "^0.20.0",
-    "ed25519": "0.0.4"
+    "ed25519": "0.0.4",
+    "source-map-support": "^0.5.11"
   }
 }

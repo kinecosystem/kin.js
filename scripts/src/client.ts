@@ -1,20 +1,18 @@
-import * as StellarSdk from "@kinecosystem/kin-sdk";
 import {
-	Asset,
 	Keypair,
 	Account,
-	// CollectionPage,
-	// PaymentOperationRecord
+	Operation,
+	Server
 } from "@kinecosystem/kin-sdk";
 
 import { KinNetwork } from "./networks";
 import {
 	Operations,
-	NativeBalance,
+	KinBalance,
 	getKinBalance,
 	KinPayment,
-	isNativeBalance
-} from "./stellar";
+	isKinBalance
+} from "./blockchain";
 
 export { Keypair };
 
@@ -37,7 +35,7 @@ export type Balance = {
 	update(): Promise<number>;
 };
 
-function fromStellarPayment(sp: KinPayment): Payment {
+function fromBlockchainPayment(sp: KinPayment): Payment {
 	return {
 		id: sp.id,
 		hash: sp.id,
@@ -49,11 +47,11 @@ function fromStellarPayment(sp: KinPayment): Payment {
 	};
 }
 
-async function getPaymentsFrom(collection: StellarSdk.Server.CollectionPage<StellarSdk.Server.PaymentOperationRecord>): Promise<Payment[]> {
+async function getPaymentsFrom(collection: Server.CollectionPage<Server.PaymentOperationRecord>): Promise<Payment[]> {
 	const payments = await KinPayment.allFrom(collection);
 	return payments
 		.filter(payment => payment) // TODO check that payments are native asset
-		.map(fromStellarPayment);
+		.map(fromBlockchainPayment);
 }
 
 export interface KinWallet {
@@ -120,7 +118,7 @@ class PaymentStream {
 }
 
 class Wallet implements KinWallet {
-	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: NativeBalance): Promise<KinWallet> {
+	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: KinBalance): Promise<KinWallet> {
 		return new Wallet(operations, network, keys, account, kinBalance);
 	}
 
@@ -130,9 +128,9 @@ class Wallet implements KinWallet {
 	private readonly operations: Operations;
 	private readonly payments: PaymentStream;
 
-	private kinBalance: NativeBalance;
+	private kinBalance: KinBalance;
 
-	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: NativeBalance) {
+	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: KinBalance) {
 		this.keys = keys;
 		this.account = account;
 		this.network = network;
@@ -148,7 +146,7 @@ class Wallet implements KinWallet {
 	}
 
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
-		const op = StellarSdk.Operation.payment({
+		const op = Operation.payment({
 			destination: recipient, // TODO do I need specify a native asset?
 			amount: amount.toString()
 		});
@@ -159,7 +157,7 @@ class Wallet implements KinWallet {
 
 		const payment = await this.operations.send(op, memo);
 		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
-		return fromStellarPayment(await KinPayment.from(operation));
+		return fromBlockchainPayment(await KinPayment.from(operation));
 	}
 
 	public async getPayments() {
@@ -202,7 +200,7 @@ export async function create(network: KinNetwork, keys: Keypair) {
 	const accountResponse = await operations.loadAccount(keys.publicKey());
 
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
-	const nativeBalance = accountResponse.balances.find(isNativeBalance);
+	const nativeBalance = accountResponse.balances.find(isKinBalance);
 	const kinBalance = getKinBalance(accountResponse);
 
 	if (!nativeBalance) {

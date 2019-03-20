@@ -1,3 +1,4 @@
+import "source-map-support/register";
 import { KinNetwork } from "./networks";
 import { create as createWallet, Keypair } from "./client";
 
@@ -10,6 +11,8 @@ const network = KinNetwork.from(
 	"https://horizon-testnet.kininfrastructure.com");
 
 createWallet(network, keys).then(wallet => {
+	console.log(wallet.balance.cached);
 	console.log(wallet);
+	console.log("=================================");
 	wallet.onPaymentReceived(console.log);
 });

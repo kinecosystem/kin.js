@@ -1,15 +1,19 @@
 import * as KinSDK from "@kinecosystem/kin-sdk";
 
 export class KinNetwork {
-	public static readonly Production = new KinNetwork(
-		KinSDK.Networks.PUBLIC,
-		"http://horizon.kinfederation.com"
-	);
+	public static getProduction() {
+		return new KinNetwork(
+			KinSDK.Networks.PUBLIC,
+			"https://horizon.kinfederation.com"
+		);
+	}
 
-	public static readonly Testnet = new KinNetwork(
-		KinSDK.Networks.TESTNET,
-		"hhttps://horizon-testnet.kininfrastructure.com"
-	);
+	public static getTestnet() {
+		return new KinNetwork(
+			KinSDK.Networks.TESTNET,
+			"https://horizon-testnet.kininfrastructure.com"
+		);
+	}
 
 	public static from(passphrase: string, horizon: string) {
 		return new KinNetwork(passphrase, horizon);
