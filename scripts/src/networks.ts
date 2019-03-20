@@ -1,30 +1,24 @@
-import * as StellarSdk from "stellar-sdk";
-
-import { KIN_ASSET_CODE } from "./stellar";
+import * as KinSDK from "@kinecosystem/kin-sdk";
 
 export class KinNetwork {
 	public static readonly Production = new KinNetwork(
-		StellarSdk.Networks.PUBLIC,
-		"GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK",
-		"https://horizon-kin-ecosystem.kininfrastructure.com"
+		KinSDK.Networks.PUBLIC,
+		"http://horizon.kinfederation.com"
 	);
 
 	public static readonly Testnet = new KinNetwork(
-		StellarSdk.Networks.TESTNET,
-		"GCKG5WGBIJP74UDNRIRDFGENNIH5Y3KBI5IHREFAJKV4MQXLELT7EX6V",
-		"https://horizon-testnet.stellar.org"
+		KinSDK.Networks.TESTNET,
+		"hhttps://horizon-testnet.kininfrastructure.com"
 	);
 
-	public static from(passphrase: string, issuer: string, horizon: string) {
-		return new KinNetwork(passphrase, issuer, horizon);
+	public static from(passphrase: string, horizon: string) {
+		return new KinNetwork(passphrase, horizon);
 	}
 
-	public readonly server!: StellarSdk.Server;
-	public readonly asset!: StellarSdk.Asset;
+	public readonly server!: KinSDK.Server;
 
-	private constructor(passphrase: string, kinAssetIssuer: string, horizonUrl: string) {
-		StellarSdk.Network.use(new StellarSdk.Network(passphrase));
-		this.server = new StellarSdk.Server(horizonUrl);
-		this.asset = new StellarSdk.Asset(KIN_ASSET_CODE, kinAssetIssuer);
+	private constructor(passphrase: string, horizonUrl: string) {
+		KinSDK.Network.use(new KinSDK.Network(passphrase));
+		this.server = new KinSDK.Server(horizonUrl);
 	}
 }

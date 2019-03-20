@@ -1,28 +1,14 @@
 import {
-	CollectionPage,
-	PaymentOperationRecord,
-	TransactionRecord,
-	Asset,
 	Keypair,
 	xdr,
 	Operation,
 	Memo
-} from "stellar-sdk";
-import * as StellarSdk from "stellar-sdk";
+} from "@kinecosystem/kin-sdk";
+import * as StellarSdk from "@kinecosystem/kin-sdk";
 
 import { retry } from "./utils";
 
-export * from "stellar-sdk";
-
-// declare module "stellar-sdk" {
-// 	export namespace Operation {
-// 		interface ChangeTrustOptions {
-// 			limit?: string;
-// 		}
-// 	}
-// }
-
-// export const KIN_ASSET_CODE = "KIN";
+export * from "@kinecosystem/kin-sdk";
 
 export type NativeBalance = {
 	balance: string;
@@ -35,31 +21,10 @@ export function isNativeBalance(obj: any): obj is NativeBalance {
 		obj.asset_type === "native";
 }
 
-export type KinBalance = {
-	// limit: string;
-	balance: string;
-	// asset_issuer: string;
-	asset_type: "native";
-	// asset_code: typeof KIN_ASSET_CODE;
-};
-
-export function isKinBalance(obj: any, asset: Asset): obj is KinBalance {
-	return obj &&
-		typeof obj.balance === "string" &&
-		// obj.asset_code === asset.code &&
-		// obj.asset_issuer === asset.issuer &&
-		obj.asset_type === "native";
-}
-
-export function isKinAccount(account: StellarSdk.AccountResponse, asset: Asset): boolean {
-	return account && account.balances && account.balances.some(balance => isKinBalance(balance, asset));
-}
-
-export function getKinBalance(account: StellarSdk.AccountResponse, asset: Asset): KinBalance | undefined {
-	// return the balance of the given asset or undefined when asset isn't trusted
+export function getKinBalance(account: StellarSdk.Server.AccountResponse): NativeBalance {
 	return account && account.balances ?
-		account.balances.find(balance => isKinBalance(balance, asset)) as KinBalance
-		: undefined;
+		account.balances.find(balance => isNativeBalance(balance)) as NativeBalance
+		: { balance: "0", asset_type: "native" };
 }
 
 export type TransactionError = {
@@ -91,20 +56,20 @@ export function isTransactionError(error: any): error is TransactionError {
 		typeof error.response.data.detail === "string";
 }
 
-function isTransactionRecord(obj: TransactionRecord | PaymentOperationRecord): obj is TransactionRecord {
-	return (obj as TransactionRecord).hash !== undefined;
+function isTransactionRecord(obj: StellarSdk.Server.TransactionRecord | StellarSdk.Server.PaymentOperationRecord): obj is StellarSdk.Server.TransactionRecord {
+	return (obj as StellarSdk.Server.TransactionRecord).hash !== undefined;
 }
 
 export class KinPayment {
-	public static from(stellarTransaction: TransactionRecord): Promise<KinPayment>;
-	public static from(stellarPaymentOperation: PaymentOperationRecord): Promise<KinPayment>;
-	public static async from(stellarObj: TransactionRecord | PaymentOperationRecord): Promise<KinPayment> {
-		let transaction: TransactionRecord;
-		let operation: PaymentOperationRecord;
+	public static from(stellarTransaction: StellarSdk.Server.TransactionRecord): Promise<KinPayment>;
+	public static from(stellarPaymentOperation: StellarSdk.Server.PaymentOperationRecord): Promise<KinPayment>;
+	public static async from(stellarObj: StellarSdk.Server.TransactionRecord | StellarSdk.Server.PaymentOperationRecord): Promise<KinPayment> {
+		let transaction: StellarSdk.Server.TransactionRecord;
+		let operation: StellarSdk.Server.PaymentOperationRecord;
 
 		if (isTransactionRecord(stellarObj)) {
 			transaction = stellarObj;
-			operation = (await stellarObj.operations())._embedded.records[0] as PaymentOperationRecord;
+			operation = (await stellarObj.operations())._embedded.records[0] as StellarSdk.Server.PaymentOperationRecord;
 		} else {
 			operation = stellarObj;
 			transaction = await operation.transaction();
@@ -113,15 +78,15 @@ export class KinPayment {
 		return new KinPayment(transaction, operation);
 	}
 
-	public static async allFrom(collection: CollectionPage<PaymentOperationRecord>): Promise<KinPayment[]> {
+	public static async allFrom(collection: StellarSdk.Server.CollectionPage<StellarSdk.Server.PaymentOperationRecord>): Promise<KinPayment[]> {
 		// TODO: add types, ad matai
 		return (await Promise.all(collection.records.map(async record => await this.from(record)))) as any;
 	}
 
-	public readonly transaction: TransactionRecord;
-	public readonly operation: PaymentOperationRecord;
+	public readonly transaction: StellarSdk.Server.TransactionRecord;
+	public readonly operation: StellarSdk.Server.PaymentOperationRecord;
 
-	private constructor(transaction: TransactionRecord, operation: PaymentOperationRecord) {
+	private constructor(transaction: StellarSdk.Server.TransactionRecord, operation: StellarSdk.Server.PaymentOperationRecord) {
 		this.operation = operation;
 		this.transaction = transaction;
 	}
@@ -153,58 +118,38 @@ export class KinPayment {
 	public get memo() {
 		return this.transaction.memo;
 	}
-
-	public get asset_code() {
-		return this.operation.asset_code;
-	}
-
-	public get asset_issuer() {
-		return this.operation.asset_issuer;
-	}
-
-	public is(asset: Asset): boolean {
-		return this.asset_code === asset.code && this.asset_issuer === asset.issuer;
-	}
 }
 
 export class Operations {
-	public static for(server: StellarSdk.Server, keys: Keypair, asset: Asset): Operations {
-		return new Operations(server, keys, asset);
+	public static for(server: StellarSdk.Server, keys: Keypair): Operations {
+		return new Operations(server, keys);
 	}
 
-	private readonly asset: Asset;
 	private readonly keys: Keypair;
 	private readonly server: StellarSdk.Server;
 
-	private constructor(server: StellarSdk.Server, keys: Keypair, asset: Asset) {
+	private constructor(server: StellarSdk.Server, keys: Keypair) {
 		this.keys = keys;
-		this.asset = asset;
 		this.server = server;
 	}
 
-	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
+	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<StellarSdk.Server.TransactionRecord> {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
 		return await this._send(account, operation, memoText);
 	}
 
-	public async establishTrustLine(): Promise<KinBalance> {
-		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
-		await this.send(op);
-		return this.checkKinBalance(this.keys.publicKey());
-	}
-
 	@retry({ errorMessagePrefix: "failed to load account" })
-	public async loadAccount(address: string): Promise<StellarSdk.AccountResponse> {
+	public async loadAccount(address: string): Promise<StellarSdk.Server.AccountResponse> {
 		return await this.server.loadAccount(address);
 	}
 
 	@retry({ errorMessagePrefix: "failed to fetch payment operation record" })
-	public async getPaymentOperationRecord(hash: string): Promise<PaymentOperationRecord> {
-		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
+	public async getPaymentOperationRecord(hash: string): Promise<StellarSdk.Server.PaymentOperationRecord> {
+		return (await this.server.operations().forTransaction(hash).call()).records[0] as StellarSdk.Server.PaymentOperationRecord;
 	}
 
 	@retry({ errorMessagePrefix: "transaction failure" })
-	public async createTransactionXDR(account: StellarSdk.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
+	public async createTransactionXDR(account: StellarSdk.Server.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
 		try {
 			const transactionBuilder = new StellarSdk.TransactionBuilder(account);
 			transactionBuilder.addOperation(operation);
@@ -232,15 +177,11 @@ export class Operations {
 	@retry()
 	private async checkKinBalance(address: string) {
 		const accountResponse = await this.server.loadAccount(address);
-		if (isKinAccount(accountResponse, this.asset)) {
-			return getKinBalance(accountResponse, this.asset)!;
-		}
-
-		throw new Error("failed to establish trustline");
+		return getKinBalance(accountResponse)!;
 	}
 
 	@retry({ errorMessagePrefix: "transaction failure" })
-	private async _send(account: StellarSdk.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
+	private async _send(account: StellarSdk.Server.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
 		try {
 			const transactionBuilder = new StellarSdk.TransactionBuilder(account);
 			transactionBuilder.addOperation(operation);

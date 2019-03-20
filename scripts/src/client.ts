@@ -1,15 +1,14 @@
-import * as StellarSdk from "stellar-sdk";
+import * as StellarSdk from "@kinecosystem/kin-sdk";
 import {
 	Asset,
 	Keypair,
 	Account,
-	CollectionPage,
-	PaymentOperationRecord
-} from "stellar-sdk";
+	// CollectionPage,
+	// PaymentOperationRecord
+} from "@kinecosystem/kin-sdk";
 
 import { KinNetwork } from "./networks";
 import {
-	KinBalance,
 	Operations,
 	NativeBalance,
 	getKinBalance,
@@ -50,10 +49,10 @@ function fromStellarPayment(sp: KinPayment): Payment {
 	};
 }
 
-async function getPaymentsFrom(collection: CollectionPage<PaymentOperationRecord>, asset: Asset): Promise<Payment[]> {
+async function getPaymentsFrom(collection: StellarSdk.Server.CollectionPage<StellarSdk.Server.PaymentOperationRecord>): Promise<Payment[]> {
 	const payments = await KinPayment.allFrom(collection);
 	return payments
-		.filter(payment => payment.is(asset))
+		.filter(payment => payment) // TODO check that payments are native asset
 		.map(fromStellarPayment);
 }
 
@@ -66,8 +65,6 @@ export interface KinWallet {
 	onPaymentReceived(listener: OnPaymentListener): void;
 
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
-
-	trustKin(): void;
 }
 
 class PaymentStream {
@@ -114,7 +111,7 @@ class PaymentStream {
 		const payments = await builder.call();
 
 		if (this.listener) {
-			(await getPaymentsFrom(payments, this.network.asset))
+			(await getPaymentsFrom(payments))
 				.forEach(payment => this.listener!(payment));
 		}
 
@@ -123,8 +120,8 @@ class PaymentStream {
 }
 
 class Wallet implements KinWallet {
-	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined): Promise<KinWallet> {
-		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance);
+	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: NativeBalance): Promise<KinWallet> {
+		return new Wallet(operations, network, keys, account, kinBalance);
 	}
 
 	private readonly keys: Keypair;
@@ -133,22 +130,16 @@ class Wallet implements KinWallet {
 	private readonly operations: Operations;
 	private readonly payments: PaymentStream;
 
-	private nativeBalance: NativeBalance;
-	private kinBalance: KinBalance | undefined;
+	private kinBalance: NativeBalance;
 
-	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined) {
+	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, kinBalance: NativeBalance) {
 		this.keys = keys;
 		this.account = account;
 		this.network = network;
 		this.kinBalance = kinBalance;
 		this.operations = operations;
-		this.nativeBalance = nativeBalance;
 		this.updateBalance = this.updateBalance.bind(this);
 		this.payments = new PaymentStream(this.network, this.keys.publicKey());
-	}
-
-	public async trustKin() {
-		this.kinBalance = await this.operations.establishTrustLine();
 	}
 
 	public onPaymentReceived(listener: OnPaymentListener) {
@@ -158,8 +149,7 @@ class Wallet implements KinWallet {
 
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
 		const op = StellarSdk.Operation.payment({
-			destination: recipient,
-			asset: this.network.asset,
+			destination: recipient, // TODO do I need specify a native asset?
 			amount: amount.toString()
 		});
 
@@ -180,7 +170,7 @@ class Wallet implements KinWallet {
 			.limit(10)
 			.call();
 
-		return await getPaymentsFrom(payments, this.network.asset);
+		return await getPaymentsFrom(payments);
 	}
 
 	public get address() {
@@ -203,21 +193,21 @@ class Wallet implements KinWallet {
 
 	private async updateBalance() {
 		const account = await this.network.server.loadAccount(this.keys.publicKey());
-		this.kinBalance = getKinBalance(account, this.network.asset);
+		this.kinBalance = getKinBalance(account);
 	}
 }
 
 export async function create(network: KinNetwork, keys: Keypair) {
-	const operations = Operations.for(network.server, keys, network.asset);
+	const operations = Operations.for(network.server, keys);
 	const accountResponse = await operations.loadAccount(keys.publicKey());
 
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
 	const nativeBalance = accountResponse.balances.find(isNativeBalance);
-	const kinBalance = getKinBalance(accountResponse, network.asset);
+	const kinBalance = getKinBalance(accountResponse);
 
 	if (!nativeBalance) {
 		throw new Error("account contains no balance");
 	}
 
-	return Wallet.create(operations, network, keys, account, nativeBalance, kinBalance);
+	return Wallet.create(operations, network, keys, account, kinBalance);
 }
