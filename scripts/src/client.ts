@@ -2,9 +2,10 @@ import {
 	Keypair,
 	Account,
 	Operation,
-	Server
-} from "@kinecosystem/kin-sdk";
+	Asset
+} from "@kinecosystem/kin-base";
 
+import { Server } from "@kinecosystem/kin-sdk";
 import { KinNetwork } from "./networks";
 import {
 	Operations,
@@ -63,6 +64,8 @@ export interface KinWallet {
 	onPaymentReceived(listener: OnPaymentListener): void;
 
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
+
+	toString(): string;
 }
 
 class PaymentStream {
@@ -147,7 +150,8 @@ class Wallet implements KinWallet {
 
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
 		const op = Operation.payment({
-			destination: recipient, // TODO do I need specify a native asset?
+			destination: recipient,
+			asset: Asset.native(),
 			amount: amount.toString()
 		});
 
@@ -187,6 +191,10 @@ class Wallet implements KinWallet {
 				return parseFloat(self.kinBalance!.balance);
 			}
 		};
+	}
+
+	public toString() {
+		return `[Wallet ${this.keys.publicKey()}: ${this.balance.cached} KIN] `;
 	}
 
 	private async updateBalance() {

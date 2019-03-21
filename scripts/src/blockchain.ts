@@ -4,13 +4,12 @@ import {
 	Operation,
 	Memo,
 	TransactionBuilder,
-	Server
-} from "@kinecosystem/kin-sdk";
+	TimeoutInfinite, Transaction
+} from "@kinecosystem/kin-base";
+import { Server } from "@kinecosystem/kin-sdk";
 
 import { retry } from "./utils";
 import { isTransactionError } from "./errors";
-
-export * from "@kinecosystem/kin-sdk";
 
 export type KinBalance = {
 	balance: string;
@@ -34,17 +33,17 @@ export function isTransactionRecord(obj: Server.TransactionRecord | Server.Payme
 }
 
 export class KinPayment {
-	public static from(kinTransaction: Server.TransactionRecord): Promise<KinPayment>;
-	public static from(kinPaymentOperation: Server.PaymentOperationRecord): Promise<KinPayment>;
-	public static async from(kinObj: Server.TransactionRecord | Server.PaymentOperationRecord): Promise<KinPayment> {
+	public static from(transaction: Server.TransactionRecord): Promise<KinPayment>;
+	public static from(operation: Server.PaymentOperationRecord): Promise<KinPayment>;
+	public static async from(obj: Server.TransactionRecord | Server.PaymentOperationRecord): Promise<KinPayment> {
 		let transaction: Server.TransactionRecord;
 		let operation: Server.PaymentOperationRecord;
 
-		if (isTransactionRecord(kinObj)) {
-			transaction = kinObj;
-			operation = (await kinObj.operations())._embedded.records[0] as Server.PaymentOperationRecord;
+		if (isTransactionRecord(obj)) {
+			transaction = obj;
+			operation = (await obj.operations())._embedded.records[0] as Server.PaymentOperationRecord;
 		} else {
-			operation = kinObj;
+			operation = obj;
 			transaction = await operation.transaction();
 		}
 
@@ -105,9 +104,10 @@ export class Operations {
 		this.server = server;
 	}
 
-	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<Server.TransactionRecord> {
+	public async send(operation: xdr.Operation<Operation>, memoText?: string): Promise<Server.TransactionRecord> {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
-		return await this._send(account, operation, memoText);
+		const transaction = this.createTransaction(account, operation, memoText);
+		return await this._send(transaction);
 	}
 
 	@retry({ errorMessagePrefix: "failed to load account" })
@@ -120,30 +120,24 @@ export class Operations {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as Server.PaymentOperationRecord;
 	}
 
-	@retry({ errorMessagePrefix: "transaction failure" })
-	public async createTransactionXDR(account: Server.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
-		try {
-			const transactionBuilder = new TransactionBuilder(account);
-			transactionBuilder.addOperation(operation);
+	public createTransactionXDR(account: Server.AccountResponse, operation: xdr.Operation<Operation>, memoText?: string): string {
+		const transaction = this.createTransaction(account, operation, memoText);
+		return transaction.toEnvelope().toXDR().toString();
+	}
 
-			if (memoText) {
-				transactionBuilder.addMemo(Memo.text(memoText));
-			}
-			const transaction = transactionBuilder.build();
+	private createTransaction(account: Server.AccountResponse, operation: xdr.Operation<Operation>, memoText?: string) {
+		const transactionBuilder = new TransactionBuilder(account);
+		transactionBuilder.addOperation(operation);
 
-			transaction.sign(this.keys);
-
-			return transaction.toEnvelope().toXDR().toString();
-		} catch (e) {
-			if (isTransactionError(e)) {
-				throw new Error(
-					`\nKin Blockchain Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.response.data.extras.result_codes.operations.join(",")}`
-				);
-			} else {
-				throw e;
-			}
+		if (memoText) {
+			transactionBuilder.addMemo(Memo.text(memoText));
 		}
+		transactionBuilder.setTimeout(TimeoutInfinite);
+
+		const transaction = transactionBuilder.build();
+		transaction.sign(this.keys);
+
+		return transaction;
 	}
 
 	@retry()
@@ -153,24 +147,14 @@ export class Operations {
 	}
 
 	@retry({ errorMessagePrefix: "transaction failure" })
-	private async _send(account: Server.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
+	private async _send(transaction: Transaction) {
 		try {
-			const transactionBuilder = new TransactionBuilder(account);
-			transactionBuilder.addOperation(operation);
-
-			if (memoText) {
-				transactionBuilder.addMemo(Memo.text(memoText));
-			}
-			const transaction = transactionBuilder.build();
-
-			transaction.sign(this.keys);
-
 			return await this.server.submitTransaction(transaction);
 		} catch (e) {
 			if (isTransactionError(e)) {
 				throw new Error(
 					`\nKin Blockchain Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.response.data.extras.result_codes.operations.join(",")}`
+					`\n\toperations: ${ e.response.data.extras.result_codes.operations.join(",") }`
 				);
 			} else {
 				throw e;
