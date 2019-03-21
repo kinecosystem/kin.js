@@ -63,6 +63,8 @@ export interface KinWallet {
 
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
 
+	getTransactionXdr(recipient: Address, amount: number, memo?: string): Promise<string>;
+
 	toString(): string;
 }
 

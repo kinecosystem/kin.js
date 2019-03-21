@@ -125,7 +125,7 @@ export class Operations {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
 
 		const transaction = this.createTransaction(account, operation, memoText);
-		return transaction.toEnvelope().toXDR().toString();
+		return transaction.toEnvelope().toXDR().toString("base64");
 	}
 
 	private createTransaction(account: Server.AccountResponse, operation: xdr.Operation<Operation>, memoText?: string) {
