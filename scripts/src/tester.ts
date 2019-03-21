@@ -18,14 +18,21 @@ async function testWallet(wallet: KinWallet) {
 	console.log(wallet.balance.cached);
 	console.log(wallet.toString());
 	console.log("=================================");
-	wallet.onPaymentReceived(p =>
-		console.log(`Got payment from ${ p.sender } of ${ p.amount } with memo ${ p.memo }`));
 
-	const payment = await wallet.pay(publicKey, 1, "some_memo" + Math.random());
+	const memo = ("some_memo" + Math.random()).substr(0, 28);
+
+	console.log("sending memo", memo);
+
+	wallet.onPaymentReceived((payment, stream) => {
+		if (payment.memo === memo) {
+			stream.stop();
+			console.log("called stop");
+		}
+		console.log(`Got payment from ${ payment.sender } of ${ payment.amount } with memo ${ payment.memo }`);
+	});
+
+	const payment = await wallet.pay(publicKey, 1, memo);
 	console.log(`Sent payment to ${ payment.recipient } of ${ payment.amount } with memo ${ payment.memo }`);
 	console.log("new balance: ", await wallet.balance.update());
-
-	wallet.onPaymentReceived(p =>
-		console.log(`Got payment from ${ p.sender } of ${ p.amount } with memo ${ p.memo }`));
 	console.log(wallet.toString());
 }

@@ -4,7 +4,6 @@ import {
 	Operation,
 	Asset
 } from "@kinecosystem/kin-base";
-
 import { Server } from "@kinecosystem/kin-sdk";
 import { KinNetwork } from "./networks";
 import {
@@ -19,7 +18,7 @@ export { Keypair };
 
 export type Address = string;
 
-export type OnPaymentListener = (payment: Payment) => void;
+export type OnPaymentListener = (payment: Payment, stream: PaymentStream) => void;
 
 export interface Payment {
 	readonly id: string;
@@ -77,6 +76,7 @@ class PaymentStream {
 	private timer: any | undefined;
 	private cursor: string | undefined;
 	private listener: OnPaymentListener | undefined;
+	private stopLoop: boolean = false;
 
 	constructor(network: KinNetwork, accountId: string) {
 		this.network = network;
@@ -89,6 +89,9 @@ class PaymentStream {
 	}
 
 	public start() {
+		if (this.stopLoop) {
+			return;
+		}
 		if (this.timer === undefined) {
 			this.timer = setTimeout(this.check, PaymentStream.POLLING_INTERVAL);
 		}
@@ -97,9 +100,11 @@ class PaymentStream {
 	public stop() {
 		clearTimeout(this.timer);
 		this.timer = undefined;
+		this.stopLoop = true;
 	}
 
 	private async check() {
+		this.timer = undefined;
 		const builder = this.network.server
 			.payments()
 			.forAccount(this.accountId)
@@ -113,7 +118,7 @@ class PaymentStream {
 
 		if (this.listener) {
 			(await getPaymentsFrom(payments))
-				.forEach(payment => this.listener!(payment));
+				.forEach(payment => this.listener!(payment, this));
 		}
 
 		this.start();
@@ -129,7 +134,6 @@ class Wallet implements KinWallet {
 	private readonly account: Account;
 	private readonly network: KinNetwork;
 	private readonly operations: Operations;
-	private readonly payments: PaymentStream;
 
 	private kinBalance: KinBalance;
 
@@ -139,13 +143,12 @@ class Wallet implements KinWallet {
 		this.network = network;
 		this.kinBalance = kinBalance;
 		this.operations = operations;
-		this.updateBalance = this.updateBalance.bind(this);
-		this.payments = new PaymentStream(this.network, this.keys.publicKey());
 	}
 
 	public onPaymentReceived(listener: OnPaymentListener) {
-		this.payments.setListener(listener);
-		this.payments.start();
+		const payments = new PaymentStream(this.network, this.keys.publicKey());
+		payments.setListener(listener);
+		payments.start();
 	}
 
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
@@ -194,7 +197,7 @@ class Wallet implements KinWallet {
 	}
 
 	public toString() {
-		return `[Wallet ${this.keys.publicKey()}: ${this.balance.cached} KIN] `;
+		return `[Wallet ${ this.keys.publicKey() }: ${ this.balance.cached } KIN] `;
 	}
 
 	private async updateBalance() {
