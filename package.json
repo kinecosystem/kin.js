@@ -1,6 +1,6 @@
 {
   "name": "@kinecosystem/kin.js",
-  "version": "1.0.7",
+  "version": "2.0.0",
   "description": "A typescript/javascript implementation of the Kin sdk",
   "main": "scripts/bin/index.js",
   "types": "scripts/bin/index.d.ts",
@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "lint": "tslint -p scripts/tsconfig.json",
-    "build": "tsc -p scripts/tsconfig.json"
+    "build": "tsc -p scripts/tsconfig.json",
+    "test": "node ./scripts/bin/tester"
   },
   "author": "nitzan@kik.com",
   "license": "MIT",
@@ -18,13 +19,14 @@
     "url": "https://github.com/kinecosystem/kin.js"
   },
   "devDependencies": {
-    "@types/stellar-sdk": "0.8.6",
+    "@types/node": "^11.11.3",
     "tslint": "5.11.0",
     "tslint-eslint-rules": "5.3.1",
     "typescript": "3.0.1"
   },
   "dependencies": {
+    "@kinecosystem/kin-sdk": "^0.20.3",
     "ed25519": "0.0.4",
-    "stellar-sdk": "0.10.0"
+    "source-map-support": "^0.5.11"
   }
 }
