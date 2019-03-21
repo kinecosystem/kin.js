@@ -35,4 +35,7 @@ async function testWallet(wallet: KinWallet) {
 	console.log(`Sent payment to ${ payment.recipient } of ${ payment.amount } with memo ${ payment.memo }`);
 	console.log("new balance: ", await wallet.balance.update());
 	console.log(wallet.toString());
+
+	const transactionXdr = await wallet.getTransactionXdr(publicKey, 1, memo);
+	console.log("xdr", transactionXdr);
 }
