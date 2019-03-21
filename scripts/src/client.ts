@@ -151,6 +151,20 @@ class Wallet implements KinWallet {
 		payments.start();
 	}
 
+	public async getTransactionXdr(recipient: Address, amount: number, memo?: string): Promise<string> {
+		const op = Operation.payment({
+			destination: recipient,
+			asset: Asset.native(),
+			amount: amount.toString()
+		});
+
+		if (memo && typeof memo !== "string") {
+			memo = undefined;
+		}
+
+		return await this.operations.createTransactionXDR(op, memo);
+	}
+
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
 		const op = Operation.payment({
 			destination: recipient,

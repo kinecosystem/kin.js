@@ -120,7 +120,9 @@ export class Operations {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as Server.PaymentOperationRecord;
 	}
 
-	public createTransactionXDR(account: Server.AccountResponse, operation: xdr.Operation<Operation>, memoText?: string): string {
+	public async createTransactionXDR(operation: xdr.Operation<Operation>, memoText?: string): Promise<string> {
+		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
+
 		const transaction = this.createTransaction(account, operation, memoText);
 		return transaction.toEnvelope().toXDR().toString();
 	}
