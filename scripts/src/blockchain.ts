@@ -4,9 +4,10 @@ import {
 	Operation,
 	Memo,
 	TransactionBuilder,
-	TimeoutInfinite, Transaction
-} from "@kinecosystem/kin-base";
-import { Server } from "@kinecosystem/kin-sdk";
+	TimeoutInfinite,
+	Transaction,
+	Server
+} from "@kinecosystem/kin-sdk";
 
 import { retry } from "./utils";
 import { isTransactionError } from "./errors";

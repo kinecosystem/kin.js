@@ -2,9 +2,8 @@ import {
 	Keypair,
 	Account,
 	Operation,
-	Asset
-} from "@kinecosystem/kin-base";
-import { Server } from "@kinecosystem/kin-sdk";
+	Asset, Server
+} from "@kinecosystem/kin-sdk";
 import { KinNetwork } from "./networks";
 import {
 	Operations,
