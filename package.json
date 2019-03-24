@@ -1,7 +1,7 @@
 {
-  "name": "@kinecosystem/kin.js",
-  "version": "1.0.7",
-  "description": "A typescript/javascript implementation of the Kin sdk",
+  "name": "@kinecosystem/kin.js-v1",
+  "version": "1.0.8",
+  "description": "A typescript/javascript implementation of the Kin sdk (version1)",
   "main": "scripts/bin/index.js",
   "types": "scripts/bin/index.d.ts",
   "files": [
@@ -15,7 +15,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kinecosystem/kin.js"
+    "url": "https://github.com/kinecosystem/kin.js/tree/version1"
   },
   "devDependencies": {
     "@types/stellar-sdk": "0.8.6",

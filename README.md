@@ -1,15 +1,15 @@
-# kin.js
+# kin.js-v1
 
-A typescript/javascript implementation of the Kin sdk.  
+A typescript/javascript implementation of the Kin sdk.
 The sdk is meant to run in both node based apps as well as in the browser.
 
 ## Current state
-This is still a work in progress and is **not** ready for use.  
+This is still a work in progress and is **not** ready for use.
 Currently it's only possible to load an existing funded wallets.
 
 ## Client
-The sdk offers a client which allows to check for payments (earn and spend transactions) and 
-to create new payments.  
+The sdk offers a client which allows to check for payments (earn and spend transactions) and
+to create new payments.
 The client interface:
 ```typescript
 interface Payment {
@@ -34,7 +34,7 @@ interface KinWallet {
 
 In order to create a wallet:
 ```typescript
-import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js";
+import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js-v1";
 
 async function createKinWallet(): Promise<KinWallet> {
 	const keys = Keypair.random();
@@ -46,7 +46,7 @@ async function createKinWallet(): Promise<KinWallet> {
 
 Or using promises (without `async/await`):
 ```typescript
-import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js";
+import { KinWallet, createWallet, KinNetwork, Keypair } from "@kinecosystem/kin.js-v1";
 
 const keys = Keypair.random();
 const network = KinNetwork.Testnet;
@@ -57,14 +57,14 @@ createWallet(network, keys).then(w => wallet = w);
 
 For production use the appropriate network:
 ```typescript
-import { KinNetwork } from "@kinecosystem/kin.js";
+import { KinNetwork } from "@kinecosystem/kin.js-v1";
 
 const network = KinNetwork.Production;
 ```
 
 Or you can create your own:
 ```typescript
-import { KinNetwork } from "@kinecosystem/kin.js";
+import { KinNetwork } from "@kinecosystem/kin.js-v1";
 
 const network = KinNetwork.from(
 	"network passphrase",
