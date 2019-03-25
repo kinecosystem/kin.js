@@ -52,7 +52,7 @@ export class KinPayment {
 	}
 
 	public static async allFrom(collection: Server.CollectionPage<Server.PaymentOperationRecord>): Promise<KinPayment[]> {
-		return await Promise.all(collection.records.map(async record => await this.from(record)));
+		return await Promise.all(collection.records.filter(r => r.type === "payment").map(async record => await this.from(record)));
 	}
 
 	public readonly transaction: Server.TransactionRecord;
@@ -105,9 +105,9 @@ export class Operations {
 		this.server = server;
 	}
 
-	public async send(operation: xdr.Operation<Operation>, memoText?: string): Promise<Server.TransactionRecord> {
+	public async send(operation: xdr.Operation<Operation>, options: { memo?: string, fee?: number } = {}): Promise<Server.TransactionRecord> {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
-		const transaction = this.createTransaction(account, operation, memoText);
+		const transaction = this.createTransaction(account, operation, options);
 		return await this._send(transaction);
 	}
 
@@ -121,22 +121,24 @@ export class Operations {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as Server.PaymentOperationRecord;
 	}
 
-	public async createTransactionXDR(operation: xdr.Operation<Operation>, memoText?: string): Promise<string> {
+	public async createTransactionXDR(operation: xdr.Operation<Operation>, options: { memo?: string, fee?: number } = {}): Promise<string> {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
-
-		const transaction = this.createTransaction(account, operation, memoText);
+		const transaction = this.createTransaction(account, operation, options);
 		return transaction.toEnvelope().toXDR().toString("base64");
 	}
 
-	private createTransaction(account: Server.AccountResponse, operation: xdr.Operation<Operation>, memoText?: string) {
-		const transactionBuilder = new TransactionBuilder(account);
-		transactionBuilder.addOperation(operation);
-
-		if (memoText) {
-			transactionBuilder.addMemo(Memo.text(memoText));
+	private createTransaction(account: Server.AccountResponse, operation: xdr.Operation<Operation>, options: { memo?: string, fee?: number } = {}) {
+		const transactionOpts: TransactionBuilder.TransactionBuilderOptions = {};
+		if (options.fee !== null && options.fee !== undefined) {
+			transactionOpts.fee = options.fee;
 		}
-		transactionBuilder.setTimeout(TimeoutInfinite);
+		if (options.memo !== null && options.memo !== undefined) {
+			transactionOpts.memo = Memo.text(options.memo);
+		}
 
+		const transactionBuilder = new TransactionBuilder(account, transactionOpts);
+		transactionBuilder.addOperation(operation);
+		transactionBuilder.setTimeout(TimeoutInfinite);
 		const transaction = transactionBuilder.build();
 		transaction.sign(this.keys);
 
@@ -157,7 +159,7 @@ export class Operations {
 			if (isTransactionError(e)) {
 				throw new Error(
 					`\nKin Blockchain Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${ e.response.data.extras.result_codes.operations.join(",") }`
+					`\n\toperations: ${ (e.response.data.extras.result_codes.operations || []).join(",") }`
 				);
 			} else {
 				throw e;

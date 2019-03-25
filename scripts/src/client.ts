@@ -61,9 +61,9 @@ export interface KinWallet {
 
 	onPaymentReceived(listener: OnPaymentListener): void;
 
-	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
+	pay(recipient: Address, amount: number, options?: { memo?: string, fee?: number }): Promise<Payment>;
 
-	getTransactionXdr(recipient: Address, amount: number, memo?: string): Promise<string>;
+	getTransactionXdr(recipient: Address, amount: number, options?: { memo?: string, fee?: number }): Promise<string>;
 
 	toString(): string;
 }
@@ -108,20 +108,32 @@ class PaymentStream {
 		this.timer = undefined;
 		const builder = this.network.server
 			.payments()
-			.forAccount(this.accountId)
-			.order("desc");
+			.forAccount(this.accountId);
 
+		let order: "asc" | "desc" = "desc";
 		if (this.cursor) {
 			builder.cursor(this.cursor);
+			order = "asc";
 		}
-
-		const payments = await builder.call();
+		builder.order(order);
+		const blockchainPayments = await builder.call();
 
 		if (this.listener) {
-			(await getPaymentsFrom(payments))
-				.forEach(payment => this.listener!(payment, this));
+			let kinPayments = await getPaymentsFrom(blockchainPayments);
+
+			if (order === "desc") {
+				kinPayments = kinPayments.reverse();
+			}
+			kinPayments.forEach(payment => this.listener!(payment, this));
 		}
 
+		if (blockchainPayments.records.length) {
+			if (order === "asc") {
+				this.cursor = blockchainPayments.records[blockchainPayments.records.length - 1].paging_token;
+			} else {
+				this.cursor = blockchainPayments.records[0].paging_token;
+			}
+		}
 		this.start();
 	}
 }
@@ -152,32 +164,32 @@ class Wallet implements KinWallet {
 		payments.start();
 	}
 
-	public async getTransactionXdr(recipient: Address, amount: number, memo?: string): Promise<string> {
+	public async getTransactionXdr(recipient: Address, amount: number, options: { memo?: string, fee?: number } = {}): Promise<string> {
 		const op = Operation.payment({
 			destination: recipient,
 			asset: Asset.native(),
 			amount: amount.toString()
 		});
 
-		if (memo && typeof memo !== "string") {
-			memo = undefined;
+		if (options.memo && typeof options.memo !== "string") {
+			options.memo = undefined;
 		}
 
-		return await this.operations.createTransactionXDR(op, memo);
+		return await this.operations.createTransactionXDR(op, options);
 	}
 
-	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
+	public async pay(recipient: Address, amount: number, options: { memo?: string, fee?: number } = {}): Promise<Payment> {
 		const op = Operation.payment({
 			destination: recipient,
 			asset: Asset.native(),
 			amount: amount.toString()
 		});
 
-		if (memo && typeof memo !== "string") {
-			memo = undefined;
+		if (options.memo && typeof options.memo !== "string") {
+			options.memo = undefined;
 		}
 
-		const payment = await this.operations.send(op, memo);
+		const payment = await this.operations.send(op, options);
 		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
 		return fromBlockchainPayment(await KinPayment.from(operation));
 	}

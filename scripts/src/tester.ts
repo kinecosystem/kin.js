@@ -15,6 +15,9 @@ createWallet(network, keys).then(async wallet => {
 });
 
 async function testWallet(wallet: KinWallet) {
+	const transactionXdr3 = await wallet.getTransactionXdr(publicKey, 1);
+	console.log("xdr", transactionXdr3);
+
 	console.log(wallet.balance.cached);
 	console.log(wallet.toString());
 	console.log("=================================");
@@ -28,14 +31,14 @@ async function testWallet(wallet: KinWallet) {
 			stream.stop();
 			console.log("called stop");
 		}
-		console.log(`Got payment from ${ payment.sender } of ${ payment.amount } with memo ${ payment.memo }`);
+		console.log(`Got payment ${ payment.id } from ${ payment.sender } of ${ payment.amount } with memo ${ payment.memo }`);
 	});
 
-	const payment = await wallet.pay(publicKey, 1, memo);
+	const payment = await wallet.pay(publicKey, 1, { memo, fee: 100 });
 	console.log(`Sent payment to ${ payment.recipient } of ${ payment.amount } with memo ${ payment.memo }`);
 	console.log("new balance: ", await wallet.balance.update());
 	console.log(wallet.toString());
 
-	const transactionXdr = await wallet.getTransactionXdr(publicKey, 1, memo);
+	const transactionXdr = await wallet.getTransactionXdr(publicKey, 1, { memo, fee: 100 });
 	console.log("xdr", transactionXdr);
 }
