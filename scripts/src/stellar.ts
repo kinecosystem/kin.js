@@ -233,7 +233,7 @@ export class Operations {
 				transactionBuilder.addMemo(Memo.text(memoText));
 			}
 			const transaction = transactionBuilder.build();
-			console.log(transaction.sequence)
+			console.log(transaction.sequence);
 
 			transaction.sign(this.keys);
 
