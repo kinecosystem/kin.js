@@ -1,7 +1,7 @@
 import { Keypair } from "stellar-sdk";
 
 import { KinNetwork } from "./networks";
-import { KinWallet, Payment, create as createWallet } from "./client";
+import { KinWallet, Payment, create as createWallet, Wallet } from "./client";
 
 export {
 	Keypair,
@@ -9,5 +9,6 @@ export {
 	KinWallet,
 	KinNetwork,
 	Payment,
-	createWallet
+	createWallet,
+	Wallet
 };
