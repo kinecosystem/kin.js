@@ -204,6 +204,10 @@ export class Operations {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
 	}
 
+	/**
+	 * Gets the burn records from transaction hash
+	 * @param      {string}  hash    burning transaction hash
+	 */
 	@retry({ errorMessagePrefix: "failed to fetch burn operations record" })
 	public async getBurnRecords(hash: string): Promise<Array<ChangeTrustOperationRecord | SetOptionsOperationRecord>> {
 		const records = (await this.server.operations().forTransaction(hash).call()).records;
@@ -225,7 +229,6 @@ export class Operations {
 		const accountTest = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
 		try {
 			const transactionBuilder = new StellarSdk.TransactionBuilder(accountTest);
-			console.log(account.sequence);
 			operations.forEach(operation => {
 				transactionBuilder.addOperation(operation);
 			});
@@ -233,13 +236,11 @@ export class Operations {
 				transactionBuilder.addMemo(Memo.text(memoText));
 			}
 			const transaction = transactionBuilder.build();
-			console.log(transaction.sequence);
 
 			transaction.sign(this.keys);
 
 			return await this.server.submitTransaction(transaction);
 		} catch (e) {
-			console.log(e.response.data.extras);
 			if (isTransactionError(e)) {
 				throw new Error(
 					`\nStellar Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +

@@ -68,6 +68,8 @@ export interface KinWallet {
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
 
 	trustKin(): void;
+
+	burn(): Promise<boolean>;
 }
 
 class PaymentStream {
@@ -122,7 +124,7 @@ class PaymentStream {
 	}
 }
 
-export class Wallet implements KinWallet {
+class Wallet implements KinWallet {
 	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined): Promise<KinWallet> {
 		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance);
 	}
