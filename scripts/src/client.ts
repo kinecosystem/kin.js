@@ -68,6 +68,8 @@ export interface KinWallet {
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
 
 	trustKin(): void;
+
+	burn(): Promise<boolean>;
 }
 
 class PaymentStream {
@@ -167,9 +169,27 @@ class Wallet implements KinWallet {
 			memo = undefined;
 		}
 
-		const payment = await this.operations.send(op, memo);
+		const payment = await this.operations.send([ op ], memo);
 		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
 		return fromStellarPayment(await StellarPayment.from(operation));
+	}
+
+	public async burn(): Promise<boolean> {
+		await this.updateBalance();
+		const changeTrust = StellarSdk.Operation.changeTrust({
+			asset: this.network.asset,
+			limit: this.kinBalance ? this.kinBalance.balance : "0",
+		});
+		const changeWeight = StellarSdk.Operation.setOptions({
+			masterWeight: 0,
+		});
+
+		try {
+			await this.operations.send([changeTrust, changeWeight]);
+			return true;
+		} catch (e) {
+			return false;
+		}
 	}
 
 	public async getPayments() {

@@ -9,5 +9,5 @@ export {
 	KinWallet,
 	KinNetwork,
 	Payment,
-	createWallet
+	createWallet,
 };

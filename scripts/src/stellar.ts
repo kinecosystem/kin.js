@@ -6,7 +6,9 @@ import {
 	Keypair,
 	xdr,
 	Operation,
-	Memo
+	Memo,
+	ChangeTrustOperationRecord,
+	SetOptionsOperationRecord,
 } from "stellar-sdk";
 import * as StellarSdk from "stellar-sdk";
 
@@ -181,14 +183,14 @@ export class Operations {
 		this.server = server;
 	}
 
-	public async send(operation: xdr.Operation<Operation.Operation>, memoText?: string): Promise<TransactionRecord> {
+	public async send(operations: Array<xdr.Operation<Operation.Operation>>, memoText?: string): Promise<TransactionRecord> {
 		const account = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
-		return await this._send(account, operation, memoText);
+		return await this._send(account, operations, memoText);
 	}
 
 	public async establishTrustLine(): Promise<KinBalance> {
 		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
-		await this.send(op);
+		await this.send([ op ]);
 		return this.checkKinBalance(this.keys.publicKey());
 	}
 
@@ -202,6 +204,16 @@ export class Operations {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
 	}
 
+	/**
+	 * Gets the burn records from transaction hash
+	 * @param      {string}  hash    burning transaction hash
+	 */
+	@retry({ errorMessagePrefix: "failed to fetch burn operations record" })
+	public async getBurnRecords(hash: string): Promise<Array<ChangeTrustOperationRecord | SetOptionsOperationRecord>> {
+		const records = (await this.server.operations().forTransaction(hash).call()).records;
+		return [records[0] as ChangeTrustOperationRecord, records[1] as SetOptionsOperationRecord];
+	}
+
 	@retry()
 	private async checkKinBalance(address: string) {
 		const accountResponse = await this.server.loadAccount(address);
@@ -213,11 +225,13 @@ export class Operations {
 	}
 
 	@retry({ errorMessagePrefix: "transaction failure" })
-	private async _send(account: StellarSdk.AccountResponse, operation: xdr.Operation<Operation.Operation>, memoText?: string) {
+	private async _send(account: StellarSdk.AccountResponse, operations: Array<xdr.Operation<Operation.Operation>>, memoText?: string) {
+		const accountTest = await this.loadAccount(this.keys.publicKey());  // loads the sequence number
 		try {
-			const transactionBuilder = new StellarSdk.TransactionBuilder(account);
-			transactionBuilder.addOperation(operation);
-
+			const transactionBuilder = new StellarSdk.TransactionBuilder(accountTest);
+			operations.forEach(operation => {
+				transactionBuilder.addOperation(operation);
+			});
 			if (memoText) {
 				transactionBuilder.addMemo(Memo.text(memoText));
 			}
@@ -230,7 +244,7 @@ export class Operations {
 			if (isTransactionError(e)) {
 				throw new Error(
 					`\nStellar Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.response.data.extras.result_codes.operations.join(",")}`
+					`\n\toperations: ${e.response.data.extras.result_codes.operations && e.response.data.extras.result_codes.operations.join(",")}`
 				);
 			} else {
 				throw e;
