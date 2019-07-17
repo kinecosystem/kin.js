@@ -100,6 +100,8 @@ function isTransactionRecord(obj: TransactionRecord | PaymentOperationRecord): o
 export class StellarPayment {
 	public static from(stellarTransaction: TransactionRecord): Promise<StellarPayment>;
 	public static from(stellarPaymentOperation: PaymentOperationRecord): Promise<StellarPayment>;
+
+	@retry({ errorMessagePrefix: "failed to load StellarPayment" })
 	public static async from(stellarObj: TransactionRecord | PaymentOperationRecord): Promise<StellarPayment> {
 		let transaction: TransactionRecord;
 		let operation: PaymentOperationRecord;
@@ -202,6 +204,11 @@ export class Operations {
 	@retry({ errorMessagePrefix: "failed to fetch payment operation record" })
 	public async getPaymentOperationRecord(hash: string): Promise<PaymentOperationRecord> {
 		return (await this.server.operations().forTransaction(hash).call()).records[0] as PaymentOperationRecord;
+		// const res = await this.server.operations().forTransaction(hash).call();
+		// if (Array.isArray(res.records) && res.records.length) {
+		// 	return res.records[0] as PaymentOperationRecord;
+		// }
+		// throw new Error("transaction not mined yet");
 	}
 
 	/**

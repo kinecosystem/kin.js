@@ -42,6 +42,7 @@ async function _retry<T>(fn: () => T, options?: RetryOptions) {
 				return obj;
 			}
 		} catch (e) {
+			console.log("predicate is " + options.predicate);
 			// thrown errors are are ignored only if a predicate was not passed
 			if (options.predicate) {
 				throw e;
