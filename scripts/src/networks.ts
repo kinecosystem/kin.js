@@ -4,14 +4,14 @@ import { KIN_ASSET_CODE } from "./stellar";
 
 export class KinNetwork {
 	public static readonly Production = new KinNetwork(
-		StellarSdk.Networks.PUBLIC,
+		"Public Global Kin Ecosystem Network ; June 2018",
 		"GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK",
 		"https://horizon-ecosystem.kininfrastructure.com/"
 	);
 
 	public static readonly Testnet = new KinNetwork(
-		StellarSdk.Networks.TESTNET,
-		"GCKG5WGBIJP74UDNRIRDFGENNIH5Y3KBI5IHREFAJKV4MQXLELT7EX6V",
+		"Kin Playground Network ; June 2018",
+		"GBC3SG6NGTSZ2OMH3FFGB7UVRQWILW367U4GSOOF4TFSZONV42UJXUH7",
 		"https://horizon-playground.kininfrastructure.com/"
 	);
 
