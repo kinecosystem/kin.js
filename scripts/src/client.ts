@@ -159,6 +159,7 @@ class Wallet implements KinWallet {
 	}
 
 	public async pay(recipient: Address, amount: number, memo?: string): Promise<Payment> {
+		console.log("pay to amount: %s, recipient address: %s, memo: %s", amount, recipient, memo);
 		const op = StellarSdk.Operation.payment({
 			destination: recipient,
 			asset: this.network.asset,
@@ -174,7 +175,7 @@ class Wallet implements KinWallet {
 		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
-	public async burn(): Promise<boolean> {
+	public async burn(memo?: string): Promise<boolean> {
 		await this.updateBalance();
 		const changeTrust = StellarSdk.Operation.changeTrust({
 			asset: this.network.asset,
@@ -185,7 +186,7 @@ class Wallet implements KinWallet {
 		});
 
 		try {
-			await this.operations.send([changeTrust, changeWeight]);
+			await this.operations.send([changeTrust, changeWeight], memo);
 			return true;
 		} catch (e) {
 			return false;
