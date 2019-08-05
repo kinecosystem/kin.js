@@ -6,13 +6,13 @@ export class KinNetwork {
 	public static readonly Production = new KinNetwork(
 		StellarSdk.Networks.PUBLIC,
 		"GDF42M3IPERQCBLWFEZKQRK77JQ65SCKTU3CW36HZVCX7XX5A5QXZIVK",
-		"https://horizon-kin-ecosystem.kininfrastructure.com"
+		"https://horizon-ecosystem.kininfrastructure.com/"
 	);
 
 	public static readonly Testnet = new KinNetwork(
 		StellarSdk.Networks.TESTNET,
 		"GCKG5WGBIJP74UDNRIRDFGENNIH5Y3KBI5IHREFAJKV4MQXLELT7EX6V",
-		"https://horizon-testnet.stellar.org"
+		"https://horizon-playground.kininfrastructure.com/"
 	);
 
 	public static from(passphrase: string, issuer: string, horizon: string) {
