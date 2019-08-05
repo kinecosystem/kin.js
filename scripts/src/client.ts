@@ -69,7 +69,7 @@ export interface KinWallet {
 
 	trustKin(): void;
 
-	burn(): Promise<boolean>;
+	burn(memo?: string): Promise<boolean>;
 }
 
 class PaymentStream {
