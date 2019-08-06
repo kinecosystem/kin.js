@@ -31,6 +31,11 @@ export type NativeBalance = {
 	asset_type: "native";
 };
 
+export type AccountSigners = Array <{
+		public_key: string
+		weight: number
+	}>;
+
 export function isNativeBalance(obj: any): obj is NativeBalance {
 	return obj &&
 		typeof obj.balance === "string" &&
@@ -190,7 +195,7 @@ export class Operations {
 
 	public async establishTrustLine(): Promise<KinBalance> {
 		const op = StellarSdk.Operation.changeTrust({ asset: this.asset });
-		await this.send([ op ]);
+		await this.send([op]);
 		return this.checkKinBalance(this.keys.publicKey());
 	}
 
@@ -244,7 +249,7 @@ export class Operations {
 			if (isTransactionError(e)) {
 				throw new Error(
 					`\nStellar Error:\ntransaction: ${ e.response.data.extras.result_codes.transaction }` +
-					`\n\toperations: ${e.response.data.extras.result_codes.operations && e.response.data.extras.result_codes.operations.join(",")}`
+					`\n\toperations: ${ e.response.data.extras.result_codes.operations && e.response.data.extras.result_codes.operations.join(",") }`
 				);
 			} else {
 				throw e;

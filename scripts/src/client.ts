@@ -14,6 +14,7 @@ import {
 	NativeBalance,
 	getKinBalance,
 	StellarPayment,
+	AccountSigners,
 	isNativeBalance
 } from "./stellar";
 
@@ -68,6 +69,8 @@ export interface KinWallet {
 	pay(recipient: Address, amount: number, memo?: string): Promise<Payment>;
 
 	trustKin(): void;
+
+	isBurned(): Promise<boolean>;
 
 	burn(memo?: string): Promise<boolean>;
 }
@@ -125,8 +128,8 @@ class PaymentStream {
 }
 
 class Wallet implements KinWallet {
-	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined): Promise<KinWallet> {
-		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance);
+	public static async create(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined, signers: AccountSigners | undefined): Promise<KinWallet> {
+		return new Wallet(operations, network, keys, account, nativeBalance, kinBalance, signers);
 	}
 
 	private readonly keys: Keypair;
@@ -137,20 +140,29 @@ class Wallet implements KinWallet {
 
 	private nativeBalance: NativeBalance;
 	private kinBalance: KinBalance | undefined;
+	private signers: AccountSigners | undefined;
 
-	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined) {
+	private constructor(operations: Operations, network: KinNetwork, keys: Keypair, account: Account, nativeBalance: NativeBalance, kinBalance: KinBalance | undefined, signers: AccountSigners | undefined) {
 		this.keys = keys;
 		this.account = account;
 		this.network = network;
 		this.kinBalance = kinBalance;
 		this.operations = operations;
 		this.nativeBalance = nativeBalance;
-		this.updateBalance = this.updateBalance.bind(this);
+		this.update = this.update.bind(this);
 		this.payments = new PaymentStream(this.network, this.keys.publicKey());
+		this.signers = signers;
 	}
 
 	public async trustKin() {
 		this.kinBalance = await this.operations.establishTrustLine();
+	}
+
+	public async isBurned() {
+		await this.update();
+		const isKinLimited = !this.kinBalance || (this.kinBalance.balance === this.kinBalance.limit);
+		const isSignerWeightZero = this.signers && (this.signers[0].weight === 0);
+		return !!(isKinLimited && isSignerWeightZero);
 	}
 
 	public onPaymentReceived(listener: OnPaymentListener) {
@@ -170,13 +182,13 @@ class Wallet implements KinWallet {
 			memo = undefined;
 		}
 
-		const payment = await this.operations.send([ op ], memo);
+		const payment = await this.operations.send([op], memo);
 		const operation = await this.operations.getPaymentOperationRecord(payment.hash);
 		return fromStellarPayment(await StellarPayment.from(operation));
 	}
 
 	public async burn(memo?: string): Promise<boolean> {
-		await this.updateBalance();
+		await this.update();
 		const changeTrust = StellarSdk.Operation.changeTrust({
 			asset: this.network.asset,
 			limit: this.kinBalance ? this.kinBalance.balance : "0",
@@ -216,15 +228,18 @@ class Wallet implements KinWallet {
 				return parseFloat(self.kinBalance!.balance);
 			},
 			async update() {
-				await self.updateBalance();
+				await self.update();
 				return parseFloat(self.kinBalance!.balance);
 			}
 		};
 	}
 
-	private async updateBalance() {
+	private async update() {
 		const account = await this.network.server.loadAccount(this.keys.publicKey());
 		this.kinBalance = getKinBalance(account, this.network.asset);
+		this.nativeBalance = account.balances.find(isNativeBalance)!;
+		this.signers = account.signers;
+		// Do we need to update more things?
 	}
 }
 
@@ -235,10 +250,11 @@ export async function create(network: KinNetwork, keys: Keypair) {
 	const account = new Account(accountResponse.accountId(), accountResponse.sequenceNumber());
 	const nativeBalance = accountResponse.balances.find(isNativeBalance);
 	const kinBalance = getKinBalance(accountResponse, network.asset);
+	const signers = accountResponse.signers;
 
 	if (!nativeBalance) {
 		throw new Error("account contains no balance");
 	}
 
-	return Wallet.create(operations, network, keys, account, nativeBalance, kinBalance);
+	return Wallet.create(operations, network, keys, account, nativeBalance, kinBalance, signers);
 }
